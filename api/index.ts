@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { handleApiRoute } from '../src/server/apiHandler.ts';
+import { handleApiRoute } from '../src/server/apiHandler';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
   const url = req.url || '';
