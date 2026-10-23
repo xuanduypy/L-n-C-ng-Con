@@ -1,0 +1,6 @@
+{
+  "name": "Lớn Cùng Con - Chú Chó Biết Nói Đồng Hành Cùng Bé",
+  "description": "Ứng dụng bạn đồng hành thông minh cho bé: học tiếng Anh hằng ngày, toán học vui, lịch sử diệu kỳ, luyện phát âm chuẩn xác, kho truyện cổ tích NotebookLM và báo cáo theo dõi phát triển cho phụ huynh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
