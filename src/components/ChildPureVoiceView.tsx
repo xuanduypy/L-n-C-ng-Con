@@ -17,6 +17,9 @@ interface ChildPureVoiceViewProps {
   onDismissVocabPrompt?: () => void;
   activeMusicTitle?: string | null;
   onStopMusic?: () => void;
+  currentSpokenText?: string;
+  micPermissionGranted?: boolean | null;
+  onWakeUpVoice?: () => void;
 }
 
 export const ChildPureVoiceView: React.FC<ChildPureVoiceViewProps> = ({
@@ -33,6 +36,9 @@ export const ChildPureVoiceView: React.FC<ChildPureVoiceViewProps> = ({
   onDismissVocabPrompt,
   activeMusicTitle,
   onStopMusic,
+  currentSpokenText,
+  micPermissionGranted,
+  onWakeUpVoice,
 }) => {
   // Secret 3-second press in the top-right corner
   const [pressProgress, setPressProgress] = useState(0);
@@ -158,9 +164,25 @@ export const ChildPureVoiceView: React.FC<ChildPureVoiceViewProps> = ({
       )}
 
       {/* Center Stage: The Cute Animated Puppy Character */}
-      <div className="relative flex flex-col items-center justify-center p-4">
+      <div
+        onClick={() => {
+          onWakeUpVoice?.();
+          onPetPuppy();
+        }}
+        className="relative flex flex-col items-center justify-center p-4 cursor-pointer"
+      >
         {/* Soft radial glow under puppy */}
         <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-gradient-to-tr from-amber-200/50 to-rose-200/50 blur-2xl pointer-events-none" />
+
+        {/* Real-time speech bubble when child speaks */}
+        {speechDetected && currentSpokenText && (
+          <div className="absolute -top-14 max-w-[280px] sm:max-w-xs z-30 pointer-events-none animate-in fade-in zoom-in-95">
+            <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-2xl shadow-xl border-2 border-rose-200 text-slate-800 text-xs sm:text-sm font-black text-center flex items-center gap-1.5">
+              <span>🎤</span>
+              <span className="truncate">"{currentSpokenText}"</span>
+            </div>
+          </div>
+        )}
 
         {/* The Puppy Character - Size XL/2XL */}
         <PuppyAvatar
@@ -178,6 +200,17 @@ export const ChildPureVoiceView: React.FC<ChildPureVoiceViewProps> = ({
           <div className="absolute -bottom-8 w-44 h-6 rounded-full bg-rose-400/30 blur-sm animate-pulse pointer-events-none" />
         )}
       </div>
+
+      {/* Wake-up & Microphone Permission Banner if not listening yet */}
+      {!isListening && (
+        <div
+          onClick={onWakeUpVoice}
+          className="absolute bottom-8 z-30 cursor-pointer animate-bounce bg-white/95 backdrop-blur-md px-6 py-3 rounded-full shadow-2xl border-2 border-rose-300 text-rose-600 font-black text-xs sm:text-sm flex items-center gap-2 hover:bg-rose-50 active:scale-95 transition"
+        >
+          <span className="text-base">🐾</span>
+          <span>Chạm vào cún để cùng trò chuyện nhé!</span>
+        </div>
+      )}
 
       {/* Floating Daily Vocabulary Coaching Card (Showcase when puppy prompts a word) */}
       {activeVocabPrompt && (

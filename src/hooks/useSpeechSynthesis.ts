@@ -93,13 +93,13 @@ export function useSpeechSynthesis(settings: VoiceSettings): SpeechSynthesisHook
       const utterance = new SpeechSynthesisUtterance(cleanText);
       const isEnglish = options?.lang === 'en' || options?.lang === 'en-US' || /^[A-Za-z0-9\s.,!?'"()-]+$/.test(cleanText.slice(0, 30));
 
-      // Select voice based on language and preset
       const targetLang = isEnglish ? 'en' : 'vi';
       const matchedVoice =
         availableVoices.find((v) => v.lang.toLowerCase().startsWith(targetLang)) ||
         availableVoices.find((v) => v.lang.toLowerCase().includes('vi')) ||
         availableVoices[0];
 
+      utterance.lang = targetLang === 'en' ? 'en-US' : 'vi-VN';
       if (matchedVoice) {
         utterance.voice = matchedVoice;
       }
@@ -108,18 +108,30 @@ export function useSpeechSynthesis(settings: VoiceSettings): SpeechSynthesisHook
       utterance.rate = settings.rate;
       utterance.volume = settings.volume;
 
+      let safetyTimeout: any = null;
+
       utterance.onstart = () => {
         setIsSpeaking(true);
         setCurrentText(cleanText);
+
+        // Safety timeout: Chrome sometimes fails to fire onend for long utterances
+        const estimatedDurationMs = Math.max(3000, (cleanText.length / 10) * 1000 + 3000);
+        safetyTimeout = setTimeout(() => {
+          setIsSpeaking(false);
+          setCurrentText(null);
+          options?.onEnd?.();
+        }, estimatedDurationMs);
       };
 
       utterance.onend = () => {
+        if (safetyTimeout) clearTimeout(safetyTimeout);
         setIsSpeaking(false);
         setCurrentText(null);
         options?.onEnd?.();
       };
 
       utterance.onerror = (e) => {
+        if (safetyTimeout) clearTimeout(safetyTimeout);
         console.warn('SpeechSynthesis error:', e);
         setIsSpeaking(false);
         setCurrentText(null);

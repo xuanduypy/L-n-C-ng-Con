@@ -75,11 +75,40 @@ export async function handleApiRoute(
 
       const ai = getGenAI();
       if (!ai) {
+        const lower = (message || '').toLowerCase();
+        let fallbackReply = `Gâu gâu! Cún nghe bé ${childName} nói rồi nè! Bé kể tiếp cho cún nghe với nào!`;
+        let fallbackEmotion = 'happy';
+        let wantsMusic = false;
+
+        if (lower.includes('nhạc') || lower.includes('hát')) {
+          fallbackReply = `Gâu gâu! Cún mở bài hát thiếu nhi rộn ràng cho bé nghe ngay đây! Chúng mình cùng lắc lư nhảy múa nhé! 🎵`;
+          fallbackEmotion = 'grooving';
+          wantsMusic = true;
+        } else if (lower.includes('chuyện') || lower.includes('sách')) {
+          fallbackReply = `Gâu gâu! Ngày xửa ngày xưa có một chú cún nhỏ thông minh và bé ${childName} cùng chơi đùa trong khu rừng cổ tích tuyệt đẹp!`;
+          fallbackEmotion = 'happy';
+        } else if (lower.includes('chào') || lower.includes('hello') || lower.includes('ơi')) {
+          fallbackReply = `Gâu gâu! Cún chào bé ${childName} yêu quý! Cún đang lắng nghe bé nói thật rõ đây này! Hôm nay bé có chuyện gì vui kể cún nghe nào!`;
+          fallbackEmotion = 'waving';
+        } else if (lower.includes('ăn gì') || lower.includes('đói')) {
+          fallbackReply = `Gâu gâu! Cún thích gặm khúc xương đồ chơi giòn tan và ăn bánh quy cún, nhưng món cún thích nhất là được trò chuyện cùng bé ${childName} đó!`;
+          fallbackEmotion = 'laughing';
+        } else if (lower.includes('yêu') || lower.includes('thương')) {
+          fallbackReply = `Gâu gâu! Cún cũng yêu thương bé ${childName} nhiều như biển rộng trời cao luôn! Được bé khen làm cún vui sướng lắc lư tít mù rồi nè! 🥰`;
+          fallbackEmotion = 'laughing';
+        } else if (lower.includes('bóng') || lower.includes('chơi')) {
+          fallbackReply = `Hoan hô! Cún thích chơi bóng nhất trần đời! Bé nhìn xem cún tâng quả bóng rực rỡ bổng lên trời cao nè!`;
+          fallbackEmotion = 'playing_ball';
+        } else if (lower.includes('sủa') || lower.includes('kêu')) {
+          fallbackReply = `Gâu gâu gâu! 🐾 Cún sủa mừng rỡ chào bé nè! Bé thấy cún sủa có dũng cảm không nào?`;
+          fallbackEmotion = 'excited';
+        }
+
         return sendJson(res, 200, {
-          reply: `Gâu gâu! Chào ${childName}! Tớ là ${puppyName} đây! Hôm nay bé muốn cùng tớ khám phá điều gì nào?`,
-          action: 'wag_tail',
+          reply: fallbackReply,
+          emotion: fallbackEmotion,
+          wantsMusic,
           suggestedWords: ['Puppy', 'Friend', 'Star'],
-          curiosityQuestion: 'Bé có biết chú cún thích ăn gì nhất không nào?',
         });
       }
 

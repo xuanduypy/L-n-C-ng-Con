@@ -25,6 +25,7 @@ import { ChildPureVoiceView } from './components/ChildPureVoiceView';
 import { ParentPinModal } from './components/ParentPinModal';
 import { ParentStudioView } from './components/ParentStudioView';
 import { playTrack, stopMusic, isMusicPlaying } from './utils/musicSynthesizer';
+import { processPuppySpeechOffline } from './utils/localPuppyBrain';
 import confetti from 'canvas-confetti';
 
 export default function App() {
@@ -380,10 +381,30 @@ export default function App() {
         }
       }
 
+      // Pre-compute intelligent offline brain response as immediate fallback
+      const offlineBrain = processPuppySpeechOffline(
+        spokenText,
+        childProfile,
+        stories,
+        words,
+        musicTracks
+      );
+
+      // If child asks for music directly via voice
+      if (offlineBrain.wantsMusic) {
+        handlePlayRandomMusic();
+        setIsProcessingAI(false);
+        return;
+      }
+
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+
         const res = await fetch('/api/gemini/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({
             message: spokenText,
             puppyName: childProfile.puppyName,
@@ -393,12 +414,14 @@ export default function App() {
             context: groundedStoryContext,
           }),
         });
+        clearTimeout(timeoutId);
 
         if (res.ok) {
           const data = await res.json();
-          const reply = data.reply || `Gâu gâu! Bé ${childProfile.name} nói cún nghe rõ rồi nè!`;
+          const reply = data.reply || offlineBrain.reply;
+          const emotion = (data.emotion as PuppyMood) || offlineBrain.emotion;
 
-          setPuppyMood((data.emotion as PuppyMood) || 'happy');
+          setPuppyMood(emotion);
           speak(reply);
 
           // If child asked for music and AI detected it
@@ -437,10 +460,26 @@ export default function App() {
           throw new Error('Chat API returned error');
         }
       } catch (err) {
-        console.warn('Voice AI fallback:', err);
-        const fallback = `Gâu gâu! ${childProfile.puppyName} đang lắng nghe bé nè! Bé kể tiếp cho cún nghe đi!`;
-        setPuppyMood('happy');
-        speak(fallback);
+        console.warn('Using smart local brain for response:', err);
+        setPuppyMood(offlineBrain.emotion);
+        speak(offlineBrain.reply);
+
+        setLearningHistory((prev) => [
+          {
+            id: `log-${Date.now()}`,
+            timestamp: new Date().toLocaleTimeString('vi-VN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+            createdAt: Date.now(),
+            type: 'chat',
+            title: `Bé nói: "${spokenText.slice(0, 35)}..."`,
+            detail: `Cún đáp: "${offlineBrain.reply.slice(0, 80)}..."`,
+            score: 95,
+            stars: 3,
+          },
+          ...prev,
+        ]);
       } finally {
         setIsProcessingAI(false);
       }
@@ -452,6 +491,8 @@ export default function App() {
       activeMusicTitle,
       childProfile,
       stories,
+      words,
+      musicTracks,
       handleStopCurrentMusic,
       handlePlayRandomMusic,
       triggerDailyVocabPrompt,
@@ -460,11 +501,25 @@ export default function App() {
   );
 
   // Continuous hands-free voice hook for child
-  const { isListening, speechDetected } = useContinuousVoice({
+  const {
+    isListening,
+    speechDetected,
+    currentSpokenText,
+    micPermissionGranted,
+    wakeUpVoice,
+  } = useContinuousVoice({
     onChildSpeechEnd: handleChildSpeech,
     isSpeaking,
     enabled: viewMode === 'child',
   });
+
+  // Explicit voice wake-up on touch/tap
+  const handleWakeUpVoice = useCallback(async () => {
+    await wakeUpVoice();
+    speak(
+      `Gâu gâu! Chào bé ${childProfile.name}! Cún đã thức dậy và đang lắng nghe bé rồi nè! Bé trò chuyện cùng cún nhé!`
+    );
+  }, [wakeUpVoice, speak, childProfile.name]);
 
   // Petting the puppy (cycles through sweet playful actions)
   const petActionIndexRef = useRef(0);
@@ -508,6 +563,9 @@ export default function App() {
           isSpeaking={isSpeaking}
           isListening={isListening}
           speechDetected={speechDetected}
+          currentSpokenText={currentSpokenText}
+          micPermissionGranted={micPermissionGranted}
+          onWakeUpVoice={handleWakeUpVoice}
           puppyCostume={puppyCostume}
           onPetPuppy={handlePetPuppy}
           onRequestParentOpen={() => setShowPinModal(true)}
