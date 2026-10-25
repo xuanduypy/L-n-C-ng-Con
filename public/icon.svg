@@ -1,77 +1,76 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FF9A8B"/>
-      <stop offset="50%" stop-color="#FF6A88"/>
-      <stop offset="100%" stop-color="#FF99AC"/>
+    <!-- Soft light yellow background gradient -->
+    <linearGradient id="yellowBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEFCE8"/>
+      <stop offset="40%" stop-color="#FEF08A"/>
+      <stop offset="100%" stop-color="#FDE047"/>
     </linearGradient>
-    <linearGradient id="furGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FED7AA"/>
-      <stop offset="100%" stop-color="#FDBA74"/>
+    <!-- Golden puppy fur gradient -->
+    <linearGradient id="furGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A"/>
+      <stop offset="60%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#D97706"/>
     </linearGradient>
-    <linearGradient id="earGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#F97316"/>
-      <stop offset="100%" stop-color="#EA580C"/>
+    <linearGradient id="earGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="100%" stop-color="#B45309"/>
     </linearGradient>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#881337" flood-opacity="0.25"/>
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#78350F" flood-opacity="0.22"/>
     </filter>
   </defs>
 
-  <!-- Background Circle / Squircle -->
-  <rect width="512" height="512" rx="128" fill="url(#bgGrad)"/>
+  <!-- Light Yellow Background (Squircle) -->
+  <rect width="512" height="512" rx="128" fill="url(#yellowBg)"/>
   
-  <!-- Subtle sparkles -->
-  <path d="M120 100 L125 120 L145 125 L125 130 L120 150 L115 130 L95 125 L115 120 Z" fill="#FEF08A" opacity="0.9"/>
-  <path d="M390 110 L394 125 L410 130 L394 135 L390 150 L386 135 L370 130 L386 125 Z" fill="#FEF08A" opacity="0.9"/>
-  <circle cx="100" cy="200" r="8" fill="#FFFFFF" opacity="0.8"/>
-  <circle cx="420" cy="220" r="10" fill="#FFFFFF" opacity="0.8"/>
+  <!-- Subtle decorative sparkles -->
+  <path d="M96 90 L100 108 L118 112 L100 116 L96 134 L92 116 L74 112 L92 108 Z" fill="#CA8A04" opacity="0.45"/>
+  <path d="M414 96 L418 110 L432 114 L418 118 L414 132 L410 118 L396 114 L410 110 Z" fill="#CA8A04" opacity="0.45"/>
+  <circle cx="85" cy="200" r="7" fill="#EAB308" opacity="0.35"/>
+  <circle cx="430" cy="210" r="8" fill="#EAB308" opacity="0.35"/>
 
   <!-- Character Group -->
   <g filter="url(#shadow)">
     <!-- Floppy Ears (Left & Right) -->
-    <path d="M120 200 C80 240 80 340 140 370 C170 385 190 320 180 260 Z" fill="url(#earGrad)"/>
-    <path d="M392 200 C432 240 432 340 372 370 C342 385 322 320 332 260 Z" fill="url(#earGrad)"/>
+    <path d="M124 195 C78 245 78 345 138 375 C168 390 190 325 180 260 Z" fill="url(#earGrad)"/>
+    <path d="M388 195 C434 245 434 345 374 375 C344 390 322 325 332 260 Z" fill="url(#earGrad)"/>
 
     <!-- Puppy Head -->
-    <ellipse cx="256" cy="270" rx="135" ry="120" fill="url(#furGrad)"/>
+    <ellipse cx="256" cy="265" rx="136" ry="122" fill="url(#furGrad)"/>
+
+    <!-- Forehead tuft -->
+    <path d="M236 150 Q256 128 276 150 Q266 142 256 144 Q246 142 236 150 Z" fill="#FDE68A"/>
 
     <!-- Cheek Blush -->
-    <ellipse cx="175" cy="305" rx="22" ry="14" fill="#F43F5E" opacity="0.4"/>
-    <ellipse cx="337" cy="305" rx="22" ry="14" fill="#F43F5E" opacity="0.4"/>
+    <ellipse cx="172" cy="305" rx="22" ry="14" fill="#F43F5E" opacity="0.35"/>
+    <ellipse cx="340" cy="305" rx="22" ry="14" fill="#F43F5E" opacity="0.35"/>
 
     <!-- Snout / Muzzle -->
-    <ellipse cx="256" cy="315" rx="58" ry="42" fill="#FFFFFF"/>
+    <ellipse cx="256" cy="315" rx="60" ry="44" fill="#FFFBEB"/>
 
     <!-- Nose -->
-    <ellipse cx="256" cy="295" rx="20" ry="14" fill="#1E293B"/>
-    <ellipse cx="252" cy="291" rx="5" ry="3" fill="#FFFFFF" opacity="0.8"/>
+    <ellipse cx="256" cy="292" rx="21" ry="14" fill="#1E293B"/>
+    <ellipse cx="251" cy="288" rx="6" ry="3.5" fill="#FFFFFF" opacity="0.85"/>
 
     <!-- Puppy Mouth -->
-    <path d="M256 308 Q242 325 228 320" fill="none" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
-    <path d="M256 308 Q270 325 284 320" fill="none" stroke="#1E293B" stroke-width="4" stroke-linecap="round"/>
+    <path d="M256 306 Q240 324 224 318" fill="none" stroke="#1E293B" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M256 306 Q272 324 288 318" fill="none" stroke="#1E293B" stroke-width="4.5" stroke-linecap="round"/>
     <!-- Cute open tongue -->
-    <path d="M246 323 C246 338 266 338 266 323 Z" fill="#FB7185"/>
+    <path d="M245 321 C245 340 267 340 267 321 Z" fill="#FB7185"/>
 
     <!-- Puppy Eyes -->
-    <ellipse cx="196" cy="245" rx="18" ry="24" fill="#0F172A"/>
-    <ellipse cx="316" cy="245" rx="18" ry="24" fill="#0F172A"/>
-    <!-- Eye Highlights -->
-    <circle cx="190" cy="238" r="7" fill="#FFFFFF"/>
-    <circle cx="202" cy="254" r="3" fill="#FFFFFF"/>
-    <circle cx="310" cy="238" r="7" fill="#FFFFFF"/>
-    <circle cx="322" cy="254" r="3" fill="#FFFFFF"/>
+    <ellipse cx="194" cy="240" rx="18" ry="24" fill="#0F172A"/>
+    <ellipse cx="318" cy="240" rx="18" ry="24" fill="#0F172A"/>
+    
+    <!-- Big Eye Highlights -->
+    <circle cx="188" cy="232" r="7.5" fill="#FFFFFF"/>
+    <circle cx="199" cy="247" r="3.5" fill="#FFFFFF"/>
+    <circle cx="312" cy="232" r="7.5" fill="#FFFFFF"/>
+    <circle cx="323" cy="247" r="3.5" fill="#FFFFFF"/>
 
     <!-- Eyebrows -->
-    <ellipse cx="192" cy="215" rx="10" ry="5" fill="#C2410C" opacity="0.7"/>
-    <ellipse cx="320" cy="215" rx="10" ry="5" fill="#C2410C" opacity="0.7"/>
-
-    <!-- Forehead tuft / cute fur -->
-    <path d="M248 152 Q256 135 264 152 Q272 140 274 155" fill="none" stroke="#FDBA74" stroke-width="6" stroke-linecap="round"/>
-
-    <!-- Little Collar & Gold Bell -->
-    <path d="M190 375 Q256 405 322 375" fill="none" stroke="#EF4444" stroke-width="14" stroke-linecap="round"/>
-    <circle cx="256" cy="400" r="16" fill="#FBBF24" stroke="#D97706" stroke-width="3"/>
-    <circle cx="256" cy="402" r="3" fill="#78350F"/>
+    <ellipse cx="192" cy="202" rx="14" ry="7" fill="#FDE68A" transform="rotate(-10 192 202)"/>
+    <ellipse cx="320" cy="202" rx="14" ry="7" fill="#FDE68A" transform="rotate(10 320 202)"/>
   </g>
 </svg>

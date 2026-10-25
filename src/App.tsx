@@ -1,626 +1,451 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  ChildProfile,
-  VoiceSettings,
-  StoryBookItem,
-  LearningHistoryEntry,
-  EnglishWord,
-  PuppyMood,
-  PuppyCostume,
-  MusicTrack,
-  SecuritySettings,
-  ActiveVocabularyPrompt,
-} from './types';
-import {
-  DEFAULT_CHILD_PROFILE,
-  DEFAULT_VOICE_SETTINGS,
-  DEFAULT_ENGLISH_WORDS,
-  DEFAULT_STORIES,
-  DEFAULT_MUSIC_TRACKS,
-  DEFAULT_SECURITY_SETTINGS,
-} from './data/defaultData';
-import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
-import { useContinuousVoice } from './hooks/useContinuousVoice';
-import { ChildPureVoiceView } from './components/ChildPureVoiceView';
-import { ParentPinModal } from './components/ParentPinModal';
-import { ParentStudioView } from './components/ParentStudioView';
-import { playTrack, stopMusic, isMusicPlaying } from './utils/musicSynthesizer';
-import { processPuppySpeechOffline } from './utils/localPuppyBrain';
-import confetti from 'canvas-confetti';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode } from './types/book';
+import { INITIAL_BOOKS } from './data/initialBooks';
+import { useBookAudioPlayer } from './hooks/useBookAudioPlayer';
+import { useMusicAudioPlayer } from './hooks/useMusicAudioPlayer';
+import { SpotifySidebar } from './components/SpotifySidebar';
+import { SpotifyTopBar } from './components/SpotifyTopBar';
+import { SpotifyBottomPlayer } from './components/SpotifyBottomPlayer';
+import { HomeBrowseView } from './components/HomeBrowseView';
+import { BookDetailView } from './components/BookDetailView';
+import { MusicLibraryView } from './components/MusicLibraryView';
+import { ReaderModeView } from './components/ReaderModeView';
+import { AddBookModal } from './components/AddBookModal';
+import { AddMusicModal } from './components/AddMusicModal';
+import { MusicLyricsModal } from './components/MusicLyricsModal';
+import { VoiceSettingsModal } from './components/VoiceSettingsModal';
+
+const STORAGE_BOOKS_KEY = 'audiobookify_books_library';
 
 export default function App() {
-  // App View Mode: 'child' (Pure voice puppy) or 'parent' (Parent Studio)
-  const [viewMode, setViewMode] = useState<'child' | 'parent'>('child');
-  const [showPinModal, setShowPinModal] = useState(false);
-
-  // Security & Privacy Settings
-  const [securitySettings, setSecuritySettings] = useState<SecuritySettings>(() => {
-    const saved = localStorage.getItem('lcc_security_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SECURITY_SETTINGS;
-  });
-
-  // Persistent States for the 4 Knowledge Vaults
-  const [childProfile, setChildProfile] = useState<ChildProfile>(() => {
-    const saved = localStorage.getItem('lcc_child_profile');
-    return saved ? JSON.parse(saved) : DEFAULT_CHILD_PROFILE;
-  });
-
-  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() => {
-    const saved = localStorage.getItem('lcc_voice_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_VOICE_SETTINGS;
-  });
-
-  const [stories, setStories] = useState<StoryBookItem[]>(() => {
-    const saved = localStorage.getItem('lcc_stories');
-    return saved ? JSON.parse(saved) : DEFAULT_STORIES;
-  });
-
-  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>(() => {
-    const saved = localStorage.getItem('lcc_music_tracks');
-    return saved ? JSON.parse(saved) : DEFAULT_MUSIC_TRACKS;
-  });
-
-  const [words, setWords] = useState<EnglishWord[]>(() => {
-    const saved = localStorage.getItem('lcc_english_words');
-    return saved ? JSON.parse(saved) : DEFAULT_ENGLISH_WORDS;
-  });
-
-  const [learningHistory, setLearningHistory] = useState<LearningHistoryEntry[]>(() => {
-    const saved = localStorage.getItem('lcc_learning_history');
-    if (saved) return JSON.parse(saved);
-    return [
-      {
-        id: 'init-1',
-        timestamp: 'Hôm nay',
-        createdAt: Date.now(),
-        type: 'english_practice',
-        title: 'Chào hỏi và làm quen cùng cún',
-        detail: 'Bé đã bắt đầu tương tác giọng nói với chú cún cưng!',
-        score: 95,
-        stars: 3,
-      },
-    ];
-  });
-
-  // Active Interactive States
-  const [activeVocabPrompt, setActiveVocabPrompt] = useState<ActiveVocabularyPrompt | null>(null);
-  const [activeMusicTitle, setActiveMusicTitle] = useState<string | null>(null);
-  const [puppyMood, setPuppyMood] = useState<PuppyMood>('happy');
-  const [puppyCostume, setPuppyCostume] = useState<PuppyCostume>('none');
-  const [isProcessingAI, setIsProcessingAI] = useState<boolean>(false);
-
-  // Turn count tracker for scheduling vocabulary prompts after some conversation
-  const turnCountRef = useRef(0);
-
-  // Speech Synthesis Hook (TTS)
-  const { isSpeaking, speak, stop } = useSpeechSynthesis(voiceSettings);
-
-  // 1. Auto-Delete Chat History Policy Enforcement
-  const enforcePrivacyPurge = useCallback(() => {
-    if (!securitySettings.autoPurgeEnabled) return;
-    const maxAgeMs = securitySettings.historyRetentionHours * 60 * 60 * 1000;
-    if (maxAgeMs <= 0) {
-      // Immediate purge mode
-      setLearningHistory([]);
-      return;
-    }
-
-    const now = Date.now();
-    setLearningHistory((prev) => prev.filter((item) => now - (item.createdAt || 0) <= maxAgeMs));
-  }, [securitySettings]);
-
-  useEffect(() => {
-    enforcePrivacyPurge();
-    const interval = setInterval(enforcePrivacyPurge, 60000); // Check every minute
-    return () => clearInterval(interval);
-  }, [enforcePrivacyPurge]);
-
-  // Save states to localStorage
-  useEffect(() => {
-    localStorage.setItem('lcc_child_profile', JSON.stringify(childProfile));
-  }, [childProfile]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_voice_settings', JSON.stringify(voiceSettings));
-  }, [voiceSettings]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_stories', JSON.stringify(stories));
-  }, [stories]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_music_tracks', JSON.stringify(musicTracks));
-  }, [musicTracks]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_english_words', JSON.stringify(words));
-  }, [words]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_learning_history', JSON.stringify(learningHistory));
-  }, [learningHistory]);
-
-  useEffect(() => {
-    localStorage.setItem('lcc_security_settings', JSON.stringify(securitySettings));
-  }, [securitySettings]);
-
-  // Welcome greeting when child opens the app
-  const hasGreetedRef = useRef(false);
-  useEffect(() => {
-    if (viewMode === 'child' && !hasGreetedRef.current) {
-      hasGreetedRef.current = true;
-      const timer = setTimeout(() => {
-        speak(
-          `Gâu gâu! Chào bé ${childProfile.name}! Tớ là ${childProfile.puppyName} đây! Hôm nay bé của cún có vui không nào? Chúng mình cùng trò chuyện nhé!`
-        );
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [viewMode, childProfile, speak]);
-
-  // Music Player Helper
-  const handlePlayRandomMusic = useCallback(() => {
-    if (musicTracks.length === 0) return;
-    const randomTrack = musicTracks[Math.floor(Math.random() * musicTracks.length)];
-    setActiveMusicTitle(randomTrack.title);
-    setPuppyMood('grooving');
-
-    speak(
-      `Gâu gâu! Cún mở bài hát "${randomTrack.title}" thật rộn ràng cho bé nghe nè! Bé cùng lắc lư với cún nhé! 🎵`,
-      {
-        onEnd: () => {
-          playTrack(randomTrack, {
-            onEnd: () => {
-              setActiveMusicTitle(null);
-              setPuppyMood('happy');
-            },
-          });
-        },
+  // 1. Books Library State (Persistent in localStorage)
+  const [books, setBooks] = useState<Book[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_BOOKS_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
-    );
+    } catch (e) {
+      console.warn('Failed to load books from localStorage:', e);
+    }
+    return INITIAL_BOOKS;
+  });
 
-    setLearningHistory((prev) => [
-      {
-        id: `music-${Date.now()}`,
-        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-        createdAt: Date.now(),
-        type: 'music',
-        title: `Nghe nhạc thiếu nhi: "${randomTrack.title}"`,
-        detail: `Chú cún đã phát bài hát rộn ràng cho bé thưởng thức`,
-      },
-      ...prev,
-    ]);
-  }, [musicTracks, speak]);
+  // Save books to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_BOOKS_KEY, JSON.stringify(books));
+    } catch (e) {
+      console.warn('Failed to save books to localStorage:', e);
+    }
+  }, [books]);
 
-  const handleStopCurrentMusic = useCallback(() => {
-    stopMusic();
-    setActiveMusicTitle(null);
-    setPuppyMood('happy');
-    speak(`Dạ, cún tắt nhạc rồi nè! Bé muốn trò chuyện hay học từ mới nào nữa không?`);
-  }, [speak]);
+  // 2. Navigation & Views
+  const [currentView, setCurrentView] = useState<ViewMode>('home');
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [historyStack, setHistoryStack] = useState<ViewMode[]>(['home']);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
 
-  // Helper to prompt a daily English vocabulary word
-  const triggerDailyVocabPrompt = useCallback(
-    (targetWord?: EnglishWord) => {
-      const unmastered = words.filter((w) => !w.mastered);
-      const chosenWord =
-        targetWord ||
-        unmastered[Math.floor(Math.random() * unmastered.length)] ||
-        words[0];
+  // 3. Playback Mode: 'book' (Sách nói) or 'music' (Kho nhạc)
+  const [playbackMode, setPlaybackMode] = useState<'book' | 'music'>('book');
 
-      if (!chosenWord) return;
+  // 4. Modals & Overlays
+  const [isReaderOpen, setIsReaderOpen] = useState<boolean>(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [isAddMusicModalOpen, setIsAddMusicModalOpen] = useState<boolean>(false);
+  const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState<MusicTrack | null>(null);
+  const [targetBookForChapter, setTargetBookForChapter] = useState<Book | null>(null);
+  const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState<boolean>(false);
 
-      setActiveVocabPrompt({
-        word: chosenWord.word,
-        phonetic: chosenWord.phonetic,
-        meaning: chosenWord.vietnamese,
-        exampleSentence: chosenWord.exampleSentence,
-        exampleVietnamese: chosenWord.exampleVietnamese,
-        iconEmoji: chosenWord.iconEmoji,
-        gentleCoachTip: chosenWord.gentleCoachingNotes,
-        attemptCount: 0,
-      });
+  // 5. Audio Hooks (Books & Music)
+  const bookAudio = useBookAudioPlayer(books);
 
-      const speech = `Gâu gâu! Bé ơi, cún đố bé từ tiếng Anh này nhé: "${chosenWord.word}" - có nghĩa là ${chosenWord.vietnamese}! Bé đọc to theo cún nào: ${chosenWord.phonetic}!`;
-      setPuppyMood('happy');
-      speak(speech);
+  const musicAudio = useMusicAudioPlayer(() => {
+    // Automatically pause book reading when music starts
+    bookAudio.pause();
+    setPlaybackMode('music');
+  });
+
+  // Navigation handlers
+  const navigateTo = useCallback(
+    (view: ViewMode, book?: Book | null) => {
+      setCurrentView(view);
+      if (book !== undefined) {
+        setSelectedBook(book);
+      }
+      setHistoryStack((prev) => [...prev.slice(0, historyIndex + 1), view]);
+      setHistoryIndex((prev) => prev + 1);
     },
-    [words, speak]
+    [historyIndex]
   );
 
-  // Main Voice Interaction Handler (Continuous loop)
-  const handleChildSpeech = useCallback(
-    async (spokenText: string) => {
-      if (isProcessingAI || isSpeaking || !spokenText.trim()) return;
+  const handleNavigateBack = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevIdx = historyIndex - 1;
+      setHistoryIndex(prevIdx);
+      setCurrentView(historyStack[prevIdx]);
+    }
+  }, [historyIndex, historyStack]);
 
-      setIsProcessingAI(true);
-      setPuppyMood('thinking');
-      turnCountRef.current += 1;
+  const handleNavigateForward = useCallback(() => {
+    if (historyIndex < historyStack.length - 1) {
+      const nextIdx = historyIndex + 1;
+      setHistoryIndex(nextIdx);
+      setCurrentView(historyStack[nextIdx]);
+    }
+  }, [historyIndex, historyStack]);
 
-      const lower = spokenText.toLowerCase();
+  // Book Selection
+  const handleSelectBook = useCallback(
+    (book: Book) => {
+      setSelectedBook(book);
+      navigateTo('book-detail', book);
+    },
+    [navigateTo]
+  );
 
-      // Check if child says stop music
-      if (isMusicPlaying() || activeMusicTitle) {
-        if (
-          lower.includes('dừng nhạc') ||
-          lower.includes('tắt nhạc') ||
-          lower.includes('ngừng hát') ||
-          lower.includes('thôi nhạc')
-        ) {
-          handleStopCurrentMusic();
-          setIsProcessingAI(false);
-          return;
-        }
-      }
+  // Start Playing a Book
+  const handlePlayBook = useCallback(
+    (book: Book, chapter?: Chapter) => {
+      musicAudio.pauseMusic();
+      setPlaybackMode('book');
+      bookAudio.playBook(book, chapter);
+    },
+    [bookAudio, musicAudio]
+  );
 
-      // Check if child asks for music
-      if (
-        lower.includes('mở nhạc') ||
-        lower.includes('hát đi') ||
-        lower.includes('nghe nhạc') ||
-        lower.includes('bật nhạc') ||
-        lower.includes('hát bài')
-      ) {
-        handlePlayRandomMusic();
-        setIsProcessingAI(false);
-        return;
-      }
+  // Start Playing a Music Track
+  const handlePlayTrack = useCallback(
+    (track: MusicTrack) => {
+      bookAudio.pause();
+      setPlaybackMode('music');
+      musicAudio.playTrack(track);
+    },
+    [bookAudio, musicAudio]
+  );
 
-      // If active vocabulary prompt is currently waiting for child to pronounce
-      if (activeVocabPrompt) {
-        const target = activeVocabPrompt.word.toLowerCase();
-        const spokenNormalized = lower.trim();
+  // Start Playing Random Music Track with Shuffle Mode
+  const handlePlayRandomTrack = useCallback(() => {
+    bookAudio.pause();
+    setPlaybackMode('music');
+    musicAudio.playRandomTrack();
+  }, [bookAudio, musicAudio]);
 
-        // Check pronunciation match
-        const isCloseMatch =
-          spokenNormalized.includes(target) ||
-          target.includes(spokenNormalized) ||
-          (target === 'apple' && (spokenNormalized.includes('ép') || spokenNormalized.includes('áp'))) ||
-          (target === 'puppy' && (spokenNormalized.includes('pắp') || spokenNormalized.includes('pơ')));
+  // Add Book
+  const handleAddBook = useCallback(
+    (newBook: Book) => {
+      setBooks((prev) => [newBook, ...prev]);
+      handleSelectBook(newBook);
+      // Auto-start reading
+      handlePlayBook(newBook);
+    },
+    [handlePlayBook, handleSelectBook]
+  );
 
-        if (isCloseMatch) {
-          // Success!
-          confetti({
-            particleCount: 70,
-            spread: 60,
-            origin: { y: 0.6 },
-            colors: ['#FF6B8B', '#F59E0B', '#10B981'],
-          });
-
-          setActiveVocabPrompt((prev) => (prev ? { ...prev, isCorrect: true } : null));
-          setPuppyMood('dancing');
-
-          // Mark word as mastered
-          setWords((prev) =>
-            prev.map((w) =>
-              w.word.toLowerCase() === activeVocabPrompt.word.toLowerCase()
-                ? { ...w, mastered: true, bestScore: 98 }
-                : w
-            )
-          );
-
-          const praise = `Gâu gâu! Bé phát âm chuẩn 100%! Cún vẫy đuôi hoan hô bé nè! Bé giỏi nhất luôn!`;
-          speak(praise);
-
-          setLearningHistory((prev) => [
-            {
-              id: `vocab-${Date.now()}`,
-              timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-              createdAt: Date.now(),
-              type: 'english_practice',
-              title: `Bé đọc chuẩn từ "${activeVocabPrompt.word}"`,
-              detail: `Bé phát âm xuất sắc nghĩa là "${activeVocabPrompt.meaning}"`,
-              score: 98,
-              stars: 3,
-            },
-            ...prev,
-          ]);
-
-          setTimeout(() => {
-            setActiveVocabPrompt(null);
-            setPuppyMood('happy');
-          }, 3000);
-
-          setIsProcessingAI(false);
-          return;
-        } else {
-          // Inaccurate pronunciation, spoke a different word, or Vietnamese
-          // GENTLE & LOVING COACHING (Nắn chỉnh dịu dàng, khích lệ)
-          const coachingTip =
-            activeVocabPrompt.gentleCoachTip ||
-            `Bé mím môi nhẹ rồi bật hơi chữ đầu nha! Bé nghe cún đọc lại thật chậm nè: ${activeVocabPrompt.phonetic}!`;
-
-          setActiveVocabPrompt((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  attemptCount: prev.attemptCount + 1,
-                  gentleCoachTip: coachingTip,
-                }
-              : null
-          );
-
-          setPuppyMood('happy');
-          const gentleReply = `Gâu gâu! Bé đọc gần đúng rồi nè! Cún chỉ mẹo nhỏ cho bé nhé: ${coachingTip} Bé đọc lại cùng cún nào: ${activeVocabPrompt.word}!`;
-          speak(gentleReply);
-
-          setLearningHistory((prev) => [
-            {
-              id: `vocab-coach-${Date.now()}`,
-              timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-              createdAt: Date.now(),
-              type: 'english_practice',
-              title: `Cún nắn chỉnh từ "${activeVocabPrompt.word}"`,
-              detail: `Bé nói: "${spokenText}". Cún nhẹ nhàng hướng dẫn khẩu hình và mẹo nhớ.`,
-            },
-            ...prev,
-          ]);
-
-          setIsProcessingAI(false);
-          return;
-        }
-      }
-
-      // Check if child asks for a story from the knowledge vault
-      const isAskingForStory =
-        lower.includes('kể chuyện') ||
-        lower.includes('đọc truyện') ||
-        lower.includes('truyện cổ tích') ||
-        lower.includes('đọc sách');
-
-      let groundedStoryContext = '';
-      if (isAskingForStory || stories.length > 0) {
-        const matched = stories.find((s) => lower.includes(s.title.toLowerCase()));
-        if (matched) {
-          groundedStoryContext = `Truyện "${matched.title}": ${matched.content}`;
-        } else {
-          groundedStoryContext = `Kho truyện: ${stories
-            .slice(0, 3)
-            .map((s) => s.title)
-            .join(', ')}`;
-        }
-      }
-
-      // Pre-compute intelligent offline brain response as immediate fallback
-      const offlineBrain = processPuppySpeechOffline(
-        spokenText,
-        childProfile,
-        stories,
-        words,
-        musicTracks
+  // Add Chapter to Existing Book
+  const handleAddChapterToBook = useCallback(
+    (bookId: string, newChapter: Chapter) => {
+      setBooks((prev) =>
+        prev.map((b) => {
+          if (b.id === bookId) {
+            const updated = {
+              ...b,
+              chapters: [...b.chapters, newChapter],
+            };
+            if (selectedBook?.id === bookId) {
+              setSelectedBook(updated);
+            }
+            return updated;
+          }
+          return b;
+        })
       );
-
-      // If child asks for music directly via voice
-      if (offlineBrain.wantsMusic) {
-        handlePlayRandomMusic();
-        setIsProcessingAI(false);
-        return;
-      }
-
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3500);
-
-        const res = await fetch('/api/gemini/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            message: spokenText,
-            puppyName: childProfile.puppyName,
-            childName: childProfile.name,
-            childAge: childProfile.age,
-            mode: isAskingForStory ? 'story' : 'general',
-            context: groundedStoryContext,
-          }),
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const data = await res.json();
-          const reply = data.reply || offlineBrain.reply;
-          const emotion = (data.emotion as PuppyMood) || offlineBrain.emotion;
-
-          setPuppyMood(emotion);
-          speak(reply);
-
-          // If child asked for music and AI detected it
-          if (data.wantsMusic) {
-            handlePlayRandomMusic();
-            setIsProcessingAI(false);
-            return;
-          }
-
-          // If the interaction has reached 2-3 turns and no active prompt yet,
-          // automatically introduce today's English word to the child!
-          if (turnCountRef.current >= 2 && !activeVocabPrompt) {
-            setTimeout(() => {
-              triggerDailyVocabPrompt();
-            }, 4500);
-          }
-
-          // Record interaction in Parent history
-          setLearningHistory((prev) => [
-            {
-              id: `log-${Date.now()}`,
-              timestamp: new Date().toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-              createdAt: Date.now(),
-              type: 'chat',
-              title: `Bé nói: "${spokenText.slice(0, 35)}..."`,
-              detail: `Cún đáp: "${reply.slice(0, 80)}..."`,
-              score: 95,
-              stars: 3,
-            },
-            ...prev,
-          ]);
-        } else {
-          throw new Error('Chat API returned error');
-        }
-      } catch (err) {
-        console.warn('Using smart local brain for response:', err);
-        setPuppyMood(offlineBrain.emotion);
-        speak(offlineBrain.reply);
-
-        setLearningHistory((prev) => [
-          {
-            id: `log-${Date.now()}`,
-            timestamp: new Date().toLocaleTimeString('vi-VN', {
-              hour: '2-digit',
-              minute: '2-digit',
-            }),
-            createdAt: Date.now(),
-            type: 'chat',
-            title: `Bé nói: "${spokenText.slice(0, 35)}..."`,
-            detail: `Cún đáp: "${offlineBrain.reply.slice(0, 80)}..."`,
-            score: 95,
-            stars: 3,
-          },
-          ...prev,
-        ]);
-      } finally {
-        setIsProcessingAI(false);
-      }
     },
-    [
-      isProcessingAI,
-      isSpeaking,
-      activeVocabPrompt,
-      activeMusicTitle,
-      childProfile,
-      stories,
-      words,
-      musicTracks,
-      handleStopCurrentMusic,
-      handlePlayRandomMusic,
-      triggerDailyVocabPrompt,
-      speak,
-    ]
+    [selectedBook?.id]
   );
 
-  // Continuous hands-free voice hook for child
-  const {
-    isListening,
-    speechDetected,
-    currentSpokenText,
-    micPermissionGranted,
-    wakeUpVoice,
-  } = useContinuousVoice({
-    onChildSpeechEnd: handleChildSpeech,
-    isSpeaking,
-    enabled: viewMode === 'child',
-  });
+  // Delete Book
+  const handleDeleteBook = useCallback(
+    (bookId: string) => {
+      if (bookAudio.currentBook?.id === bookId) {
+        bookAudio.pause();
+      }
+      setBooks((prev) => prev.filter((b) => b.id !== bookId));
+      if (selectedBook?.id === bookId) {
+        setSelectedBook(null);
+        navigateTo('home');
+      }
+    },
+    [bookAudio, navigateTo, selectedBook?.id]
+  );
 
-  // Explicit voice wake-up on touch/tap
-  const handleWakeUpVoice = useCallback(async () => {
-    await wakeUpVoice();
-    speak(
-      `Gâu gâu! Chào bé ${childProfile.name}! Cún đã thức dậy và đang lắng nghe bé rồi nè! Bé trò chuyện cùng cún nhé!`
+  // Delete Chapter
+  const handleDeleteChapter = useCallback(
+    (bookId: string, chapterId: string) => {
+      setBooks((prev) =>
+        prev.map((b) => {
+          if (b.id === bookId) {
+            const updatedChapters = b.chapters.filter((c) => c.id !== chapterId);
+            const updated = { ...b, chapters: updatedChapters };
+            if (selectedBook?.id === bookId) {
+              setSelectedBook(updated);
+            }
+            return updated;
+          }
+          return b;
+        })
+      );
+    },
+    [selectedBook?.id]
+  );
+
+  // Toggle Favorite Book
+  const handleToggleFavorite = useCallback((bookId: string) => {
+    setBooks((prev) =>
+      prev.map((b) => (b.id === bookId ? { ...b, isFavorite: !b.isFavorite } : b))
     );
-  }, [wakeUpVoice, speak, childProfile.name]);
-
-  // Petting the puppy (cycles through sweet playful actions)
-  const petActionIndexRef = useRef(0);
-  const handlePetPuppy = () => {
-    const joyfulActions: { mood: PuppyMood; phrase: string }[] = [
-      {
-        mood: 'waving',
-        phrase: `Gâu gâu! ${childProfile.puppyName} vẫy chân chào bé ${childProfile.name} yêu quý nè!`,
-      },
-      {
-        mood: 'playing_ball',
-        phrase: `Gâu gâu! Bé xem cún tâng bóng bổng lên trời cao nè! Vui quá!`,
-      },
-      {
-        mood: 'dancing',
-        phrase: `Gâu gâu! Cún lắc lư nhảy theo điệu nhạc tặng riêng cho bé nè!`,
-      },
-      {
-        mood: 'laughing',
-        phrase: `Hi hi! Bé xoa đầu làm cún nhột quá, cún cười tít mắt luôn rồi nè!`,
-      },
-    ];
-
-    const action = joyfulActions[petActionIndexRef.current % joyfulActions.length];
-    petActionIndexRef.current += 1;
-
-    setPuppyMood(action.mood);
-    speak(action.phrase);
-    setTimeout(() => {
-      setPuppyMood('happy');
-    }, 2800);
-  };
+    setSelectedBook((prev) =>
+      prev && prev.id === bookId ? { ...prev, isFavorite: !prev.isFavorite } : prev
+    );
+  }, []);
 
   return (
-    <div className="w-full h-full min-h-screen">
-      {/* 1. CHILD PURE VOICE VIEW */}
-      {viewMode === 'child' && (
-        <ChildPureVoiceView
-          puppyName={childProfile.puppyName}
-          puppyMood={puppyMood}
-          isSpeaking={isSpeaking}
-          isListening={isListening}
-          speechDetected={speechDetected}
-          currentSpokenText={currentSpokenText}
-          micPermissionGranted={micPermissionGranted}
-          onWakeUpVoice={handleWakeUpVoice}
-          puppyCostume={puppyCostume}
-          onPetPuppy={handlePetPuppy}
-          onRequestParentOpen={() => setShowPinModal(true)}
-          activeVocabPrompt={activeVocabPrompt}
-          onPlayVocabAudio={(word) => speak(word, { lang: 'en-US' })}
-          onDismissVocabPrompt={() => setActiveVocabPrompt(null)}
-          activeMusicTitle={activeMusicTitle}
-          onStopMusic={handleStopCurrentMusic}
-        />
-      )}
-
-      {/* 2. PARENT STUDIO VIEW (4 Vaults, Security Auto-Delete, Voice, Progress) */}
-      {viewMode === 'parent' && (
-        <ParentStudioView
-          onBackToChildView={() => {
-            stop();
-            setViewMode('child');
+    <div className="h-screen w-screen bg-black text-white flex flex-col overflow-hidden font-sans select-none">
+      {/* Upper Area: Sidebar + Main Content Stage */}
+      <div className="flex flex-1 overflow-hidden p-2 gap-2">
+        {/* Left Spotify Sidebar */}
+        <SpotifySidebar
+          books={books}
+          activeBookId={bookAudio.currentBook?.id || null}
+          isPlaying={bookAudio.isPlaying}
+          currentView={currentView}
+          onNavigateHome={() => {
+            setSearchQuery('');
+            navigateTo('home');
           }}
-          childProfile={childProfile}
-          onUpdateChildProfile={setChildProfile}
-          voiceSettings={voiceSettings}
-          onUpdateVoiceSettings={setVoiceSettings}
-          stories={stories}
-          onAddStory={(newStory) => setStories((prev) => [newStory, ...prev])}
-          onDeleteStory={(id) => setStories((prev) => prev.filter((s) => s.id !== id))}
-          musicTracks={musicTracks}
-          onAddMusicTrack={(track) => setMusicTracks((prev) => [track, ...prev])}
-          onDeleteMusicTrack={(id) => setMusicTracks((prev) => prev.filter((m) => m.id !== id))}
-          words={words}
-          onAddWord={(word) => setWords((prev) => [word, ...prev])}
-          onDeleteWord={(id) => setWords((prev) => prev.filter((w) => w.id !== id))}
-          history={learningHistory}
-          onClearHistory={() => setLearningHistory([])}
-          securitySettings={securitySettings}
-          onUpdateSecuritySettings={setSecuritySettings}
-          puppyCostume={puppyCostume}
-          onUpdatePuppyCostume={setPuppyCostume}
-          onTestSpeak={(text) => speak(text)}
-          isSpeaking={isSpeaking}
-          onPlayMusicTrack={(track) => playTrack(track)}
-          onStopMusic={stopMusic}
-          isMusicPlaying={isMusicPlaying()}
+          onNavigateSearch={() => {
+            navigateTo('search');
+          }}
+          onNavigateMusic={() => {
+            navigateTo('music-library');
+          }}
+          onSelectBook={handleSelectBook}
+          onOpenAddModal={() => {
+            setTargetBookForChapter(null);
+            setIsAddModalOpen(true);
+          }}
+          onOpenAddMusicModal={() => {
+            setIsAddMusicModalOpen(true);
+          }}
+        />
+
+        {/* Right Main Stage */}
+        <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative shadow-xl">
+          {/* Persistent Top Navigation Bar */}
+          <SpotifyTopBar
+            currentView={currentView}
+            searchQuery={searchQuery}
+            onSearchChange={(q) => {
+              setSearchQuery(q);
+              if (q && currentView !== 'search') {
+                setCurrentView('search');
+              }
+            }}
+            onNavigateBack={handleNavigateBack}
+            onNavigateForward={handleNavigateForward}
+            onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
+            voiceSettings={bookAudio.voiceSettings}
+          />
+
+          {/* Main Views Container */}
+          <div className="flex-1 overflow-hidden flex flex-col relative">
+            {(currentView === 'home' || currentView === 'search') && (
+              <HomeBrowseView
+                books={books}
+                activeBookId={bookAudio.currentBook?.id || null}
+                isPlaying={bookAudio.isPlaying}
+                onSelectBook={handleSelectBook}
+                onPlayBook={handlePlayBook}
+                onOpenAddModal={() => {
+                  setTargetBookForChapter(null);
+                  setIsAddModalOpen(true);
+                }}
+                searchQuery={searchQuery}
+                tracks={musicAudio.tracks}
+                currentTrack={musicAudio.currentTrack}
+                isPlayingMusic={musicAudio.isPlayingMusic}
+                onPlayTrack={handlePlayTrack}
+                onNavigateMusic={() => navigateTo('music-library')}
+              />
+            )}
+
+            {currentView === 'book-detail' && selectedBook && (
+              <BookDetailView
+                book={selectedBook}
+                activeChapterId={bookAudio.currentChapter?.id}
+                isPlaying={bookAudio.isPlaying}
+                onPlayBook={handlePlayBook}
+                onTogglePlay={() => {
+                  setPlaybackMode('book');
+                  musicAudio.pauseMusic();
+                  bookAudio.togglePlay();
+                }}
+                onToggleFavorite={handleToggleFavorite}
+                onOpenReader={(chapter) => {
+                  if (chapter && bookAudio.currentChapter?.id !== chapter.id) {
+                    handlePlayBook(selectedBook, chapter);
+                  }
+                  setIsReaderOpen(true);
+                }}
+                onOpenAddChapter={(b) => {
+                  setTargetBookForChapter(b);
+                  setIsAddModalOpen(true);
+                }}
+                onDeleteBook={handleDeleteBook}
+                onDeleteChapter={handleDeleteChapter}
+              />
+            )}
+
+            {currentView === 'music-library' && (
+              <MusicLibraryView
+                tracks={musicAudio.tracks}
+                currentTrack={musicAudio.currentTrack}
+                isPlaying={musicAudio.isPlayingMusic}
+                isShuffle={musicAudio.isShuffle}
+                onToggleShuffle={musicAudio.toggleShuffle}
+                onPlayRandomTrack={handlePlayRandomTrack}
+                onPlayTrack={handlePlayTrack}
+                onTogglePlay={() => {
+                  setPlaybackMode('music');
+                  bookAudio.pause();
+                  musicAudio.togglePlayMusic();
+                }}
+                onOpenAddMusicModal={() => setIsAddMusicModalOpen(true)}
+                onDeleteTrack={musicAudio.deleteTrack}
+                onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
+                onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
+              />
+            )}
+          </div>
+        </main>
+      </div>
+
+      {/* Sticky Bottom Player Bar (The Dual Spotify Player for Book & Music) */}
+      <SpotifyBottomPlayer
+        playbackMode={playbackMode}
+        // Book Props
+        currentBook={bookAudio.currentBook}
+        currentChapter={bookAudio.currentChapter}
+        isPlayingBook={bookAudio.isPlaying}
+        onTogglePlayBook={() => {
+          setPlaybackMode('book');
+          musicAudio.pauseMusic();
+          bookAudio.togglePlay();
+        }}
+        onNextChapter={bookAudio.nextChapter}
+        onPrevChapter={bookAudio.prevChapter}
+        onRewindBook={bookAudio.rewind}
+        onForwardBook={bookAudio.forward}
+        onSeekSentence={bookAudio.seekToSentence}
+        currentSentenceIndex={bookAudio.currentSentenceIndex}
+        totalSentences={bookAudio.sentences.length}
+        bookProgressPercent={bookAudio.progressPercent}
+        bookCurrentTimeSec={bookAudio.currentTimeSec}
+        bookTotalDurationSec={bookAudio.totalDurationSec}
+        isReaderOpen={isReaderOpen}
+        onToggleReader={() => setIsReaderOpen((prev) => !prev)}
+        onToggleFavoriteBook={handleToggleFavorite}
+        onOpenBookDetail={(b) => handleSelectBook(b)}
+
+        // Music Props
+        currentTrack={musicAudio.currentTrack}
+        isPlayingMusic={musicAudio.isPlayingMusic}
+        onTogglePlayMusic={() => {
+          setPlaybackMode('music');
+          bookAudio.pause();
+          musicAudio.togglePlayMusic();
+        }}
+        onNextTrack={musicAudio.nextTrack}
+        onPrevTrack={musicAudio.prevTrack}
+        onSeekTrack={musicAudio.seekTrack}
+        musicCurrentTimeSec={musicAudio.currentTimeSec}
+        musicDurationSec={musicAudio.durationSec}
+        isShuffle={musicAudio.isShuffle}
+        loopMode={musicAudio.loopMode}
+        onToggleShuffle={musicAudio.toggleShuffle}
+        onToggleLoop={musicAudio.toggleLoop}
+        onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
+        onOpenMusicLyrics={(track) => setSelectedTrackForLyrics(track)}
+
+        // Shared Controls
+        playbackRate={bookAudio.playbackRate}
+        volume={bookAudio.volume}
+        isMuted={bookAudio.isMuted}
+        onSetSpeed={(s: PlaybackSpeed) => bookAudio.setSpeed(s)}
+        onSetVolume={(v: number) => {
+          bookAudio.setVolume(v);
+        }}
+        onToggleMute={bookAudio.toggleMute}
+      />
+
+      {/* Synchronized Reader / Spotify Lyrics View Overlay for Books */}
+      {isReaderOpen && bookAudio.currentBook && bookAudio.currentChapter && (
+        <ReaderModeView
+          book={bookAudio.currentBook}
+          chapter={bookAudio.currentChapter}
+          sentences={bookAudio.sentences}
+          currentSentenceIndex={bookAudio.currentSentenceIndex}
+          isPlaying={bookAudio.isPlaying}
+          onClose={() => setIsReaderOpen(false)}
+          onSeekSentence={bookAudio.seekToSentence}
+          onTogglePlay={bookAudio.togglePlay}
         />
       )}
 
-      {/* 3. SECRET PARENT PIN MODAL (Triggered by 3s long-press in top-right corner) */}
-      <ParentPinModal
-        isOpen={showPinModal}
-        onClose={() => setShowPinModal(false)}
-        savedPin={securitySettings.parentPin}
-        onSuccess={() => {
-          setShowPinModal(false);
-          stop();
-          setViewMode('parent');
+      {/* Music Lyrics Karaoke Modal for Songs */}
+      <MusicLyricsModal
+        isOpen={!!selectedTrackForLyrics}
+        onClose={() => setSelectedTrackForLyrics(null)}
+        track={selectedTrackForLyrics}
+        isPlaying={musicAudio.isPlayingMusic}
+        onTogglePlay={() => {
+          setPlaybackMode('music');
+          bookAudio.pause();
+          musicAudio.togglePlayMusic();
         }}
+      />
+
+      {/* Add Book Modal */}
+      <AddBookModal
+        isOpen={isAddModalOpen}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setTargetBookForChapter(null);
+        }}
+        onAddBook={handleAddBook}
+        targetBookForChapter={targetBookForChapter}
+        onAddChapterToBook={handleAddChapterToBook}
+      />
+
+      {/* Add Music Track Modal (User can add songs via upload, link, or melody) */}
+      <AddMusicModal
+        isOpen={isAddMusicModalOpen}
+        onClose={() => setIsAddMusicModalOpen(false)}
+        onAddTrack={(newTrack) => {
+          musicAudio.addCustomTrack(newTrack);
+          handlePlayTrack(newTrack);
+        }}
+      />
+
+      {/* Voice Settings Modal */}
+      <VoiceSettingsModal
+        isOpen={isVoiceSettingsOpen}
+        onClose={() => setIsVoiceSettingsOpen(false)}
+        settings={bookAudio.voiceSettings}
+        onUpdateSettings={bookAudio.updateVoiceSettings}
+        availableVoices={bookAudio.availableVoices}
       />
     </div>
   );

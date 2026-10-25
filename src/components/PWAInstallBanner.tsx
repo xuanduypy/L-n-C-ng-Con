@@ -17,10 +17,14 @@ export const PWAInstallBanner: React.FC = () => {
       {/* Top Banner or Quick Install Action */}
       {(isInstallable || isIOS) && (
         <div className="bg-gradient-to-r from-amber-500 via-rose-500 to-pink-500 text-white px-3 py-2 text-xs sm:text-sm font-semibold flex items-center justify-between shadow-md relative z-40">
-          <div className="flex items-center gap-2">
-            <span className="text-base animate-bounce">📱</span>
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/apple-touch-icon.png"
+              alt="Icon Lớn Cùng Con"
+              className="w-7 h-7 rounded-lg shadow-sm border border-amber-200/60 object-cover shrink-0"
+            />
             <span>
-              Cài đặt <strong>Lớn Cùng Con</strong> vào màn hình chính điện thoại để học mọi lúc!
+              Cài đặt <strong>Lớn Cùng Con</strong> vào màn hình chính điện thoại để học và nghe nhạc mọi lúc!
             </span>
           </div>
 
@@ -61,9 +65,16 @@ export const PWAInstallBanner: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl text-slate-800 border-4 border-amber-300">
             <div className="flex items-center justify-between pb-3 border-b border-amber-100">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🐾</span>
-                <h3 className="text-lg font-black text-rose-600">Cài đặt trên iPhone / iPad</h3>
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/apple-touch-icon.png"
+                  alt="App Icon"
+                  className="w-10 h-10 rounded-2xl shadow-md border-2 border-amber-300 object-cover"
+                />
+                <div>
+                  <h3 className="text-base font-black text-rose-600 leading-tight">Cài đặt vào điện thoại</h3>
+                  <p className="text-[11px] text-slate-500">Icon cún nhỏ trên nền vàng nhạt</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowIOSGuide(false)}
