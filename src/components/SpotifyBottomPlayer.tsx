@@ -16,10 +16,15 @@ import {
   BookOpen,
   Music,
   ChevronDown,
+  Moon,
+  Clock,
+  X,
   Gauge,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { Book, Chapter, PlaybackSpeed, MusicTrack } from '../types/book';
 import { formatTime } from '../utils/textParser';
+import { SleepTimerOption } from '../hooks/useSleepTimer';
 
 interface SpotifyBottomPlayerProps {
   playbackMode: 'book' | 'music';
@@ -66,9 +71,24 @@ interface SpotifyBottomPlayerProps {
   onSetSpeed: (speed: PlaybackSpeed) => void;
   onSetVolume: (vol: number) => void;
   onToggleMute: () => void;
+
+  // Sleep Timer
+  sleepTimerOption?: SleepTimerOption;
+  sleepTimerFormatted?: string;
+  onSetSleepTimer?: (option: SleepTimerOption) => void;
+  isSleepTimerActive?: boolean;
 }
 
 const SPEED_OPTIONS: PlaybackSpeed[] = [0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+const SLEEP_TIMER_CHOICES: { label: string; value: SleepTimerOption }[] = [
+  { label: 'Tắt hẹn giờ', value: null },
+  { label: '15 phút', value: 15 },
+  { label: '30 phút', value: 30 },
+  { label: '45 phút', value: 45 },
+  { label: '60 phút', value: 60 },
+  { label: 'Khi hết chương / bài này', value: 'end_of_content' },
+];
 
 export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
   playbackMode,
@@ -115,13 +135,19 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
   onSetSpeed,
   onSetVolume,
   onToggleMute,
+
+  // Sleep timer
+  sleepTimerOption = null,
+  sleepTimerFormatted = '',
+  onSetSleepTimer,
+  isSleepTimerActive = false,
 }) => {
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSleepTimerMenu, setShowSleepTimerMenu] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
 
   const isMusic = playbackMode === 'music';
   const isPlaying = isMusic ? isPlayingMusic : isPlayingBook;
-
   const hasContent = isMusic ? !!currentTrack : !!(currentBook && currentChapter);
 
   // If nothing selected at all
@@ -175,10 +201,10 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
   return (
     <>
       {/* ============================================================== */}
-      {/* 1. MOBILE MINI-PLAYER (Floating above bottom navigation)        */}
+      {/* 1. MOBILE MINI-PLAYER (Docked safely above mobile bottom tabs) */}
       {/* ============================================================== */}
       <div
-        className="md:hidden fixed left-2 right-2 bottom-[60px] z-30 bg-[#1c1c1c]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden select-none"
+        className="md:hidden fixed left-2 right-2 bottom-[calc(62px+env(safe-area-inset-bottom,0px))] z-30 bg-[#1c1c1c]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden select-none"
       >
         {/* Slim Top Progress Indicator */}
         <div className="w-full h-1 bg-white/10 relative">
@@ -189,7 +215,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
         </div>
 
         <div className="flex items-center justify-between px-3 py-2 gap-3">
-          {/* Tapping artwork/info expands full screen now playing */}
+          {/* Tapping artwork/info expands full screen now playing sheet */}
           <div
             onClick={() => setIsMobileExpanded(true)}
             className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer active:opacity-75 transition-opacity"
@@ -208,7 +234,15 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
             {/* Info */}
             <div className="flex flex-col min-w-0 flex-1">
               <h4 className="text-xs font-bold text-white truncate">{title}</h4>
-              <p className="text-[11px] text-neutral-400 truncate mt-0.5">{subtitle}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-neutral-400 truncate">{subtitle}</p>
+                {isSleepTimerActive && (
+                  <span className="shrink-0 flex items-center gap-0.5 px-1.5 py-0.2 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-bold">
+                    <Moon className="w-2.5 h-2.5" />
+                    <span>{sleepTimerFormatted}</span>
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
@@ -241,7 +275,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               </button>
             )}
 
-            {/* Big Play/Pause Button */}
+            {/* Play/Pause Button */}
             <button
               onClick={isMusic ? onTogglePlayMusic : onTogglePlayBook}
               className="w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-lg active:scale-90 transition-transform"
@@ -270,14 +304,14 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
       {/* 2. FULL-SCREEN MOBILE NOW PLAYING SHEET                        */}
       {/* ============================================================== */}
       {isMobileExpanded && (
-        <div className="md:hidden fixed inset-0 z-50 bg-[#121212] flex flex-col text-white select-none animate-in slide-in-from-bottom duration-250">
+        <div className="md:hidden fixed inset-0 z-50 bg-[#121212] flex flex-col text-white select-none animate-in slide-in-from-bottom duration-200 overflow-y-auto max-h-[100dvh]">
           {/* Ambient Background Glow */}
           <div
             className={`absolute inset-0 bg-gradient-to-b ${coverGradient} opacity-30 pointer-events-none`}
           />
 
-          {/* Top Bar with Down Chevron */}
-          <div className="relative z-10 px-4 pt-4 pb-2 flex items-center justify-between shrink-0">
+          {/* Top Bar with Down Chevron & Sleep Timer */}
+          <div className="relative z-10 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 flex items-center justify-between shrink-0">
             <button
               onClick={() => setIsMobileExpanded(false)}
               className="p-2 -ml-2 rounded-full text-neutral-300 hover:text-white active:scale-90"
@@ -295,27 +329,41 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               </span>
             </div>
 
-            <div className="w-7" />
+            {/* Sleep Timer Icon Button */}
+            <button
+              onClick={() => setShowSleepTimerMenu((prev) => !prev)}
+              className={`p-2 rounded-full transition-colors active:scale-90 relative ${
+                isSleepTimerActive ? 'text-[#1ed760] bg-[#1ed760]/10' : 'text-neutral-300 hover:text-white'
+              }`}
+              title="Hẹn giờ đi ngủ"
+            >
+              <Moon className="w-5 h-5" />
+              {isSleepTimerActive && (
+                <span className="absolute -top-1 -right-1 px-1 py-0.2 bg-[#1ed760] text-black text-[9px] font-black rounded-full leading-none">
+                  zZ
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Main Content Area */}
-          <div className="relative z-10 flex-1 px-6 flex flex-col justify-around py-4 min-h-0">
+          <div className="relative z-10 flex-1 px-6 flex flex-col justify-around py-3 min-h-0">
             {/* Giant Cover Artwork */}
-            <div className="w-full max-w-[280px] xs:max-w-[320px] aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-[#1a1a1a] relative">
+            <div className="w-full max-w-[240px] xs:max-w-[280px] sm:max-w-[320px] aspect-square mx-auto rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-[#1a1a1a] relative my-auto">
               {coverUrl ? (
                 <img src={coverUrl} alt={title} className="w-full h-full object-cover" />
               ) : (
                 <div className={`w-full h-full bg-gradient-to-br ${coverGradient} flex items-center justify-center`}>
-                  {isMusic ? <Music className="w-24 h-24 text-white/90" /> : <BookOpen className="w-24 h-24 text-white/90" />}
+                  {isMusic ? <Music className="w-20 h-20 text-white/90" /> : <BookOpen className="w-20 h-20 text-white/90" />}
                 </div>
               )}
             </div>
 
             {/* Title & Artist/Chapter with Favorite Button */}
-            <div className="flex items-center justify-between gap-4 mt-2">
+            <div className="flex items-center justify-between gap-4 mt-3 mb-2">
               <div className="min-w-0 flex-1">
-                <h2 className="text-xl font-black text-white truncate leading-tight">{title}</h2>
-                <p className="text-sm text-neutral-400 truncate mt-1">{subtitle}</p>
+                <h2 className="text-lg sm:text-xl font-black text-white truncate leading-tight">{title}</h2>
+                <p className="text-xs sm:text-sm text-neutral-400 truncate mt-1">{subtitle}</p>
               </div>
 
               {isMusic && onToggleFavoriteTrack && currentTrack && (
@@ -382,7 +430,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
             </div>
 
             {/* Ergonomic Playback Controls Row */}
-            <div className="flex items-center justify-between px-2 my-2">
+            <div className="flex items-center justify-between px-1 my-2">
               {/* Shuffle button (music) or Speed pill (book) */}
               {isMusic ? (
                 <button
@@ -397,7 +445,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               ) : (
                 <button
                   onClick={() => setShowSpeedMenu((prev) => !prev)}
-                  className="px-2.5 py-1 rounded-full bg-[#2a2a2a] text-xs font-bold text-white border border-white/10 active:scale-90"
+                  className="px-2.5 py-1.5 rounded-full bg-[#2a2a2a] text-xs font-bold text-white border border-white/10 active:scale-90"
                 >
                   {playbackRate}x
                 </button>
@@ -480,8 +528,8 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               )}
             </div>
 
-            {/* Bottom Actions Row: Reader/Lyrics, Speed Menu, Volume */}
-            <div className="flex items-center justify-between pt-3 border-t border-white/10">
+            {/* Bottom Actions Row: Reader/Lyrics, Sleep Timer, Volume */}
+            <div className="flex items-center justify-between pt-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
               {/* Lyrics / Reader text button */}
               {isMusic ? (
                 currentTrack?.lyrics ? (
@@ -507,9 +555,22 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
                   className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#222222] text-xs font-bold text-white border border-white/10 active:scale-95"
                 >
                   <FileText className="w-4 h-4 text-[#1ed760]" />
-                  <span>Chế độ đọc chữ theo giọng</span>
+                  <span>Chữ sách đồng bộ</span>
                 </button>
               )}
+
+              {/* Sleep timer indicator pill */}
+              <button
+                onClick={() => setShowSleepTimerMenu(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-colors active:scale-95 ${
+                  isSleepTimerActive
+                    ? 'bg-[#1ed760]/20 text-[#1ed760] border-[#1ed760]/30'
+                    : 'bg-[#222222] text-neutral-300 border-white/10'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5" />
+                <span>{isSleepTimerActive ? `Hẹn giờ: ${sleepTimerFormatted}` : 'Hẹn giờ ngủ'}</span>
+              </button>
 
               {/* Volume mute toggle */}
               <button
@@ -525,6 +586,52 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Sleep Timer Selection Modal Sheet */}
+          {showSleepTimerMenu && (
+            <div
+              className="fixed inset-0 z-60 bg-black/80 backdrop-blur-sm flex flex-col justify-end p-4 animate-in fade-in duration-150"
+              onClick={() => setShowSleepTimerMenu(false)}
+            >
+              <div
+                className="bg-[#202020] border border-[#333] rounded-3xl p-5 shadow-2xl space-y-3 max-w-sm mx-auto w-full pb-[max(1rem,env(safe-area-inset-bottom))]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                  <div className="flex items-center gap-2">
+                    <Moon className="w-5 h-5 text-[#1ed760]" />
+                    <span className="font-bold text-sm text-white">Hẹn Giờ Tắt Âm Thanh</span>
+                  </div>
+                  <button
+                    onClick={() => setShowSleepTimerMenu(false)}
+                    className="p-1 rounded-full text-neutral-400 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-1 pt-1">
+                  {SLEEP_TIMER_CHOICES.map((choice) => (
+                    <button
+                      key={String(choice.value)}
+                      onClick={() => {
+                        onSetSleepTimer?.(choice.value);
+                        setShowSleepTimerMenu(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 rounded-2xl text-sm font-semibold transition-all flex items-center justify-between ${
+                        sleepTimerOption === choice.value
+                          ? 'bg-[#1ed760] text-black font-bold shadow-md'
+                          : 'text-neutral-200 hover:bg-[#2c2c2c] active:bg-[#333]'
+                      }`}
+                    >
+                      <span>{choice.label}</span>
+                      {sleepTimerOption === choice.value && <span>✓</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -651,34 +758,31 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
             <button
               onClick={isMusic ? onPrevTrack : onPrevChapter}
               className="text-neutral-400 hover:text-white transition-colors p-1"
-              title={isMusic ? 'Bài trước' : 'Chương trước'}
+              title={isMusic ? 'Bài hát trước' : 'Chương trước'}
             >
-              <SkipBack className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+              <SkipBack className="w-5 h-5 fill-current" />
             </button>
 
-            {/* Rewind 10-15s Button */}
+            {/* Rewind 15s */}
             <button
               onClick={() => {
-                if (isMusic) {
-                  onSeekTrack(Math.max(0, musicCurrentTimeSec - 10));
-                } else {
-                  onRewindBook();
-                }
+                if (isMusic) onSeekTrack(Math.max(0, musicCurrentTimeSec - 10));
+                else onRewindBook();
               }}
-              className="text-neutral-400 hover:text-white transition-colors p-1 relative group"
-              title={isMusic ? 'Lùi 10 giây' : 'Lùi 2 câu'}
+              className="text-neutral-400 hover:text-white transition-colors p-1 relative"
+              title={isMusic ? 'Tua lùi 10 giây' : 'Lùi 2 câu văn'}
             >
-              <RotateCcw className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-[8px] font-bold absolute -bottom-2.5 left-1/2 -translate-x-1/2 opacity-75">
+              <RotateCcw className="w-4 h-4" />
+              <span className="text-[8px] font-bold absolute -bottom-1 left-1/2 -translate-x-1/2">
                 {isMusic ? '10' : '15'}
               </span>
             </button>
 
-            {/* Primary Big Green Play/Pause Button */}
+            {/* Play/Pause Button */}
             <button
               onClick={isMusic ? onTogglePlayMusic : onTogglePlayBook}
-              className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md shadow-[#1ed760]/30"
-              title={isPlaying ? 'Tạm dừng' : 'Tiếp tục phát'}
+              className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white hover:bg-neutral-200 text-black flex items-center justify-center shadow transition-all hover:scale-105 active:scale-95"
+              title={isPlaying ? 'Tạm dừng' : 'Phát tiếp'}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5 fill-current" />
@@ -687,20 +791,17 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               )}
             </button>
 
-            {/* Forward 10-15s Button */}
+            {/* Fast-Forward 15s */}
             <button
               onClick={() => {
-                if (isMusic) {
-                  onSeekTrack(Math.min(musicDurationSec, musicCurrentTimeSec + 10));
-                } else {
-                  onForwardBook();
-                }
+                if (isMusic) onSeekTrack(Math.min(musicDurationSec, musicCurrentTimeSec + 10));
+                else onForwardBook();
               }}
-              className="text-neutral-400 hover:text-white transition-colors p-1 relative group"
-              title={isMusic ? 'Tới 10 giây' : 'Tới 2 câu'}
+              className="text-neutral-400 hover:text-white transition-colors p-1 relative"
+              title={isMusic ? 'Tua tới 10 giây' : 'Tới 2 câu văn'}
             >
-              <RotateCw className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="text-[8px] font-bold absolute -bottom-2.5 left-1/2 -translate-x-1/2 opacity-75">
+              <RotateCw className="w-4 h-4" />
+              <span className="text-[8px] font-bold absolute -bottom-1 left-1/2 -translate-x-1/2">
                 {isMusic ? '10' : '15'}
               </span>
             </button>
@@ -709,12 +810,12 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
             <button
               onClick={isMusic ? onNextTrack : onNextChapter}
               className="text-neutral-400 hover:text-white transition-colors p-1"
-              title={isMusic ? 'Bài tiếp theo' : 'Chương tiếp theo'}
+              title={isMusic ? 'Bài hát tiếp theo' : 'Chương tiếp theo'}
             >
-              <SkipForward className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+              <SkipForward className="w-5 h-5 fill-current" />
             </button>
 
-            {/* Loop / Repeat Button */}
+            {/* Repeat Button */}
             {isMusic ? (
               <button
                 onClick={onToggleLoop}
@@ -776,8 +877,51 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
           </div>
         </div>
 
-        {/* RIGHT: Speed, Lyrics / Reader Mode, Volume */}
+        {/* RIGHT: Sleep Timer, Speed, Lyrics / Reader Mode, Volume */}
         <div className="flex items-center justify-end gap-2 md:gap-3 w-1/4 max-w-[25%] relative">
+          {/* Sleep Timer button desktop */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSleepTimerMenu((prev) => !prev)}
+              className={`p-2 rounded-full transition-colors flex items-center gap-1.5 text-xs font-semibold ${
+                isSleepTimerActive
+                  ? 'text-[#1ed760] bg-[#1ed760]/10'
+                  : 'text-neutral-400 hover:text-white hover:bg-[#222222]'
+              }`}
+              title="Hẹn giờ ngủ"
+            >
+              <Moon className="w-4 h-4" />
+              {isSleepTimerActive && <span>{sleepTimerFormatted}</span>}
+            </button>
+
+            {showSleepTimerMenu && (
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-[#282828] border border-[#383838] rounded-xl shadow-2xl p-1.5 flex flex-col gap-1 z-50 animate-in fade-in">
+                <span className="text-[10px] uppercase font-bold text-neutral-400 px-2 py-1 flex items-center gap-1">
+                  <Moon className="w-3 h-3 text-[#1ed760]" />
+                  Hẹn giờ tắt
+                </span>
+                {SLEEP_TIMER_CHOICES.map((choice) => (
+                  <button
+                    key={String(choice.value)}
+                    onClick={() => {
+                      onSetSleepTimer?.(choice.value);
+                      setShowSleepTimerMenu(false);
+                    }}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                      sleepTimerOption === choice.value
+                        ? 'bg-[#1ed760] text-black font-bold'
+                        : 'text-neutral-300 hover:bg-[#383838]'
+                    }`}
+                  >
+                    <span>{choice.label}</span>
+                    {sleepTimerOption === choice.value && <span>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Lyrics or Reader Mode */}
           {isMusic ? (
             currentTrack?.lyrics && (
               <button

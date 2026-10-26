@@ -40,8 +40,8 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
   const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
   const [isPlayingRecorded, setIsPlayingRecorded] = useState(false);
-  const [profileName, setProfileName] = useState('Giọng Mẹ Yêu Thương');
-  const [narratorRole, setNarratorRole] = useState<'mom' | 'dad' | 'grandma' | 'storyteller'>('mom');
+  const [profileName, setProfileName] = useState('Giọng Của Tôi');
+  const [narratorRole, setNarratorRole] = useState<'mom' | 'dad' | 'grandma' | 'storyteller' | 'user'>('user');
   const [recordingWarmth, setRecordingWarmth] = useState(85);
   const [recordingPitch, setRecordingPitch] = useState(1.05);
   const [recordingRate, setRecordingRate] = useState(0.92);
@@ -243,7 +243,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 Cài Đặt & Phòng Thu Giọng Đọc
               </h3>
               <p className="text-xs text-neutral-400">
-                Tùy chỉnh giọng đọc sách, ngữ điệu truyền cảm hoặc thu âm giọng ba mẹ
+                Tùy chỉnh giọng đọc sách, ngữ điệu truyền cảm hoặc thu âm Giọng Người Dùng
               </p>
             </div>
           </div>
@@ -279,7 +279,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
             }`}
           >
             <Mic className="w-4 h-4 text-rose-500" />
-            <span>Phòng Thu Giọng Ba Mẹ</span>
+            <span>Phòng Thu Giọng Người Dùng</span>
             <span className="text-[10px] bg-rose-500/20 text-rose-400 font-extrabold px-1.5 py-0.2 rounded-full uppercase">
               Mới
             </span>
@@ -376,14 +376,14 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-bold text-xs text-white flex items-center gap-1">
                         <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
-                        Giọng Ba Mẹ
+                        Giọng Người Dùng
                       </span>
                       {settings.engine === 'user_voice' && (
                         <Check className="w-4 h-4 text-[#1ed760]" />
                       )}
                     </div>
                     <span className="text-[11px] text-neutral-400">
-                      Hồ sơ giọng ấm áp gia đình từ phòng thu.
+                      Hồ sơ giọng ấm áp của chính bạn từ phòng thu.
                     </span>
                   </button>
                 </div>
@@ -394,7 +394,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 <div className="p-3.5 rounded-xl bg-[#222222] border border-[#333333] space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-neutral-300 uppercase tracking-wider">
-                      Chọn Hồ Sơ Giọng Của Ba Mẹ:
+                      Chọn Hồ Sơ Giọng Người Dùng:
                     </span>
                     <button
                       onClick={() => setActiveTab('recording')}
@@ -586,17 +586,17 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               </div>
             </>
           ) : (
-            /* Tab 2: Parent Voice Recording Studio (Phòng Thu Giọng Ba Mẹ) */
+            /* Tab 2: User Voice Recording Studio (Phòng Thu Giọng Người Dùng) */
             <div className="space-y-5">
               {/* Intro Banner */}
               <div className="p-3.5 rounded-xl bg-gradient-to-r from-rose-950/40 via-[#1f1f1f] to-[#1a1a1a] border border-rose-900/40">
                 <h4 className="font-bold text-sm text-rose-300 flex items-center gap-2">
                   <Mic className="w-4 h-4 text-rose-400" />
-                  Phòng Thu Giọng Đọc Ba Mẹ Dành Cho Con
+                  Phòng Thu Giọng Người Dùng Để Đọc Sách
                 </h4>
                 <p className="text-xs text-neutral-300 mt-1 leading-relaxed">
-                  Ba mẹ hãy đọc đoạn văn mẫu dưới đây. Hệ thống sẽ ghi nhận và điều chỉnh các đặc tính âm sắc,
-                  độ ấm và nhịp điệu của ba mẹ để tạo giọng đọc quen thuộc, gần gũi nhất cho bé khi nghe sách!
+                  Bạn hãy đọc đoạn văn mẫu dưới đây. Hệ thống sẽ ghi nhận và tinh chỉnh các đặc tính âm sắc,
+                  độ ấm và nhịp điệu của bạn để làm giọng đọc sách quen thuộc và truyền cảm nhất!
                 </p>
               </div>
 
@@ -604,7 +604,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               <div className="p-4 rounded-xl bg-[#222222] border border-[#333333] space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold uppercase text-[#1ed760] tracking-wider">
-                    Đoạn Văn Mẫu Để Ba Mẹ Đọc Vào Micro:
+                    Đoạn Văn Mẫu Để Bạn Đọc Vào Micro:
                   </span>
                   <span className="text-[11px] text-neutral-400">Đọc diễn cảm, dịu dàng</span>
                 </div>

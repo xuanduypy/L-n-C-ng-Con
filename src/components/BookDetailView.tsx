@@ -56,7 +56,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
     isPlaying && book.chapters.some((c) => c.id === activeChapterId);
 
   return (
-    <div className="flex-1 overflow-y-auto select-none pb-36 md:pb-12 text-white">
+    <div className="flex-1 overflow-y-auto select-none pb-44 md:pb-14 text-white">
       {/* 1. Spotify Ambient Header */}
       <div
         className="p-4 sm:p-6 md:p-8 pt-6 md:pt-16 pb-6 flex flex-col md:flex-row items-center md:items-end gap-5 md:gap-6 text-center md:text-left transition-all"

@@ -651,6 +651,40 @@ export function useBookAudioPlayer(books: Book[] = []) {
     return Math.round((progressPercent / 100) * totalDurationSec);
   }, [progressPercent, totalDurationSec]);
 
+  // Sync with navigator.mediaSession for Lock Screen & Background playback
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentBook) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentChapter?.title || currentBook.title,
+        artist: currentBook.author || 'DiNo Sách Nói',
+        album: currentBook.title,
+        artwork: [
+          { src: currentBook.coverUrl || '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      });
+
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        resume();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        pause();
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        nextChapter();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        prevChapter();
+      });
+    } catch (err) {
+      console.warn('Error setting mediaSession in book player:', err);
+    }
+  }, [currentBook, currentChapter, isPlaying, pause, resume, nextChapter, prevChapter]);
+
   // Clean up on unmount
   useEffect(() => {
     return () => {

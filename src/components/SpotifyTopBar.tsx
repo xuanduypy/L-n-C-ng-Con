@@ -3,13 +3,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Sliders,
   Plus,
-  Sparkles,
-  X,
-  BookOpen,
+  User,
+  Cloud,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
-import { VoiceSettings } from '../types/book';
+import { VoiceSettings, UserAccount } from '../types/book';
 
 interface SpotifyTopBarProps {
   currentView: string;
@@ -19,6 +19,9 @@ interface SpotifyTopBarProps {
   onNavigateForward?: () => void;
   onOpenVoiceSettings: () => void;
   onOpenAddModal?: () => void;
+  onOpenUserAccount: () => void;
+  user: UserAccount | null;
+  syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
   voiceSettings: VoiceSettings;
   headerBgOpacity?: number;
   bookTitle?: string;
@@ -32,13 +35,16 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
   onNavigateForward,
   onOpenVoiceSettings,
   onOpenAddModal,
-  voiceSettings,
+  onOpenUserAccount,
+  user,
+  syncStatus,
+  voiceSettings: _voiceSettings,
   headerBgOpacity = 0.8,
-  bookTitle,
+  bookTitle: _bookTitle,
 }) => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  const isSubView = currentView === 'book-detail' || currentView === 'music-library';
+  const isSubView = currentView === 'book-detail' || currentView === 'music-library' || currentView === 'book-library';
 
   return (
     <header
@@ -83,7 +89,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           </div>
         ) : (
           <>
-            {/* Left: Back button or App Logo */}
+            {/* Left: Back button or App Logo DiNo */}
             <div className="flex items-center gap-2 min-w-0">
               {isSubView ? (
                 <button
@@ -94,23 +100,26 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
                   <span>Quay lại</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <img
-                    src="/apple-touch-icon.png"
-                    alt="Lớn Cùng Con"
-                    className="w-8 h-8 rounded-lg shadow-sm border border-amber-300/40 object-cover shrink-0"
+                    src="/icon.svg"
+                    alt="DiNo"
+                    className="w-8 h-8 rounded-xl shadow-md border border-amber-300/40 object-cover shrink-0"
                   />
                   <div className="flex flex-col">
-                    <span className="font-extrabold text-white text-sm tracking-tight leading-none">
-                      Lớn Cùng Con
+                    <span className="font-extrabold text-white text-sm tracking-tight leading-none flex items-center gap-1">
+                      DiNo
+                      <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
+                        AUDIO
+                      </span>
                     </span>
-                    <span className="text-[10px] text-neutral-400 font-medium">Đọc sách & Nghe nhạc</span>
+                    <span className="text-[10px] text-neutral-400 font-medium">Sách & Kho nhạc</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Right Action Icons for Mobile */}
+            {/* Right Action Icons for Mobile: Search, Add, and User Profile with Settings */}
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setMobileSearchOpen(true)}
@@ -124,18 +133,31 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
                 <button
                   onClick={onOpenAddModal}
                   className="p-2 rounded-full bg-[#222222] text-white active:scale-90"
-                  title="Thêm sách mới"
+                  title="Thêm sách hoặc bài hát"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
               )}
 
+              {/* User Profile Avatar with Settings */}
               <button
-                onClick={onOpenVoiceSettings}
-                className="p-2 rounded-full bg-[#222222] text-[#1ed760] active:scale-90"
-                title="Cài đặt giọng đọc"
+                onClick={onOpenUserAccount}
+                className="flex items-center gap-1.5 p-1 rounded-full bg-[#222222] border border-[#3e3e3e]/60 active:scale-90 transition-transform relative"
+                title="Tài khoản & Cài đặt ứng dụng"
               >
-                <Sliders className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black font-extrabold text-[11px] flex items-center justify-center">
+                  {user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />}
+                </div>
+                {/* Sync status indicator badge */}
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black ${
+                    syncStatus === 'syncing'
+                      ? 'bg-blue-400 animate-spin'
+                      : syncStatus === 'synced'
+                      ? 'bg-[#1ed760]'
+                      : 'bg-neutral-500'
+                  }`}
+                />
               </button>
             </div>
           </>
@@ -170,7 +192,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Bạn muốn nghe hoặc đọc sách gì?"
+              placeholder="Bạn muốn nghe album nhạc hay đọc sách gì trên DiNo?"
               className="w-full bg-[#242424] hover:bg-[#2a2a2a] focus:bg-[#333333] text-sm text-white placeholder-neutral-400 pl-10 pr-4 py-2 rounded-full border border-transparent focus:border-neutral-500 outline-none transition-all"
             />
             {searchQuery && (
@@ -184,7 +206,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           </div>
         </div>
 
-        {/* Right: Settings & Add Action */}
+        {/* Right: Add Action & User Account Menu Button */}
         <div className="flex items-center gap-2 md:gap-3 shrink-0">
           {onOpenAddModal && (
             <button
@@ -192,17 +214,23 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-all active:scale-95 shadow"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Thêm sách</span>
+              <span>Thêm mới</span>
             </button>
           )}
 
+          {/* User Icon with Settings and Account popup trigger */}
           <button
-            onClick={onOpenVoiceSettings}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#242424] hover:bg-[#2e2e2e] text-white text-xs font-semibold border border-[#3e3e3e]/60 transition-all hover:scale-105 active:scale-95 shadow"
-            title="Cài đặt giọng đọc, phòng thu và ứng dụng"
+            onClick={onOpenUserAccount}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#242424] hover:bg-[#2e2e2e] text-white text-xs font-semibold border border-[#3e3e3e]/60 transition-all hover:scale-105 active:scale-95 shadow"
+            title="Nhấn để mở Cài đặt, Hiệu chỉnh ứng dụng & Đồng bộ đám mây"
           >
-            <Sliders className="w-4 h-4 text-[#1ed760]" />
-            <span>Cài đặt giọng đọc</span>
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black font-extrabold text-[11px] flex items-center justify-center shrink-0">
+              {user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />}
+            </div>
+            <span className="font-bold max-w-[120px] truncate">{user?.name || 'Tài khoản'}</span>
+            <div className="flex items-center gap-1 pl-1 border-l border-[#3a3a3a] text-neutral-400">
+              <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'text-blue-400 animate-spin' : syncStatus === 'synced' ? 'text-[#1ed760]' : ''}`} />
+            </div>
           </button>
         </div>
       </div>

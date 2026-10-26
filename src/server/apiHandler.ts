@@ -1,5 +1,45 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import type { IncomingMessage, ServerResponse } from 'http';
+import fs from 'fs';
+import path from 'path';
+
+// Cloud sync persistent memory store
+interface UserCloudData {
+  email: string;
+  name: string;
+  books: any[];
+  customTracks: any[];
+  userProfiles: any[];
+  lastSyncedAt: number;
+}
+
+const cloudSyncStore = new Map<string, UserCloudData>();
+const CACHE_FILE = path.resolve(process.cwd(), 'cloud_sync_cache.json');
+
+// Initialize cache from disk if available
+try {
+  if (fs.existsSync(CACHE_FILE)) {
+    const raw = fs.readFileSync(CACHE_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    Object.entries(parsed).forEach(([email, data]) => {
+      cloudSyncStore.set(email.toLowerCase(), data as UserCloudData);
+    });
+  }
+} catch (e) {
+  console.warn('Could not read cloud_sync_cache.json:', e);
+}
+
+function persistCacheToDisk() {
+  try {
+    const obj: Record<string, UserCloudData> = {};
+    cloudSyncStore.forEach((val, key) => {
+      obj[key] = val;
+    });
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(obj, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Failed to persist cloud_sync_cache.json:', e);
+  }
+}
 
 function getGenAI(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -397,6 +437,182 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
     } catch (err: any) {
       console.warn('Gemini TTS error, client fallback available:', err.message);
       return sendJson(res, 200, { audioBase64: null, error: err.message });
+    }
+  }
+
+  // 5. User Email Authentication & Account Login
+  if (pathname === '/api/auth/login' && req.method === 'POST') {
+    try {
+      const { email = '', name = '' } = await parseBody(req);
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) {
+        return sendJson(res, 400, { error: 'Vui lòng nhập địa chỉ email hợp lệ' });
+      }
+
+      const displayName = name ? String(name).trim() : cleanEmail.split('@')[0];
+      let userData = cloudSyncStore.get(cleanEmail);
+
+      if (!userData) {
+        userData = {
+          email: cleanEmail,
+          name: displayName,
+          books: [],
+          customTracks: [],
+          userProfiles: [],
+          lastSyncedAt: Date.now(),
+        };
+        cloudSyncStore.set(cleanEmail, userData);
+        persistCacheToDisk();
+      } else if (name && userData.name !== displayName) {
+        userData.name = displayName;
+        persistCacheToDisk();
+      }
+
+      return sendJson(res, 200, {
+        user: {
+          id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          email: cleanEmail,
+          name: userData.name || displayName,
+          isLoggedIn: true,
+          lastSyncedAt: userData.lastSyncedAt,
+        },
+        cloudData: {
+          books: userData.books || [],
+          customTracks: userData.customTracks || [],
+          userProfiles: userData.userProfiles || [],
+          lastSyncedAt: userData.lastSyncedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error('Error in /api/auth/login:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi đăng nhập' });
+    }
+  }
+
+  // 6. Cloud Data Sync (Sync across Web, Mobile & PWA APK)
+  if (pathname === '/api/sync/data') {
+    // GET: Retrieve cloud saved books, custom music & voice profiles
+    if (req.method === 'GET') {
+      const urlObj = new URL(req.url || '', 'http://localhost');
+      const email = (urlObj.searchParams.get('email') || '').trim().toLowerCase();
+
+      if (!email) {
+        return sendJson(res, 400, { error: 'Thiếu email để đồng bộ dữ liệu' });
+      }
+
+      const userData = cloudSyncStore.get(email);
+      if (!userData) {
+        return sendJson(res, 200, {
+          email,
+          books: [],
+          customTracks: [],
+          userProfiles: [],
+          lastSyncedAt: Date.now(),
+        });
+      }
+
+      return sendJson(res, 200, {
+        email: userData.email,
+        books: userData.books || [],
+        customTracks: userData.customTracks || [],
+        userProfiles: userData.userProfiles || [],
+        lastSyncedAt: userData.lastSyncedAt,
+      });
+    }
+
+    // POST: Push local additions/updates to cloud & merge
+    if (req.method === 'POST') {
+      try {
+        const {
+          email = '',
+          books = [],
+          customTracks = [],
+          userProfiles = [],
+        } = await parseBody(req);
+
+        const cleanEmail = String(email).trim().toLowerCase();
+        if (!cleanEmail) {
+          return sendJson(res, 400, { error: 'Cần có email để lưu trữ đồng bộ' });
+        }
+
+        let existing = cloudSyncStore.get(cleanEmail);
+        if (!existing) {
+          existing = {
+            email: cleanEmail,
+            name: cleanEmail.split('@')[0],
+            books: [],
+            customTracks: [],
+            userProfiles: [],
+            lastSyncedAt: Date.now(),
+          };
+        }
+
+        // Merge books: Keep all custom books, and update favorites / read counts
+        const bookMap = new Map<string, any>();
+        (existing.books || []).forEach((b: any) => bookMap.set(b.id, b));
+        (books || []).forEach((b: any) => {
+          // If already exists, take newer or merged state
+          if (bookMap.has(b.id)) {
+            const prev = bookMap.get(b.id);
+            bookMap.set(b.id, {
+              ...prev,
+              ...b,
+              readCount: Math.max(prev.readCount || 0, b.readCount || 0),
+              likesCount: Math.max(prev.likesCount || 0, b.likesCount || 0),
+              isFavorite: b.isFavorite !== undefined ? b.isFavorite : prev.isFavorite,
+            });
+          } else {
+            bookMap.set(b.id, b);
+          }
+        });
+
+        // Merge custom tracks:
+        const trackMap = new Map<string, any>();
+        (existing.customTracks || []).forEach((t: any) => trackMap.set(t.id, t));
+        (customTracks || []).forEach((t: any) => {
+          if (trackMap.has(t.id)) {
+            const prev = trackMap.get(t.id);
+            trackMap.set(t.id, {
+              ...prev,
+              ...t,
+              playCount: Math.max(prev.playCount || 0, t.playCount || 0),
+              likesCount: Math.max(prev.likesCount || 0, t.likesCount || 0),
+              isFavorite: t.isFavorite !== undefined ? t.isFavorite : prev.isFavorite,
+            });
+          } else {
+            trackMap.set(t.id, t);
+          }
+        });
+
+        // Merge user voice profiles:
+        const profileMap = new Map<string, any>();
+        (existing.userProfiles || []).forEach((p: any) => profileMap.set(p.id, p));
+        (userProfiles || []).forEach((p: any) => profileMap.set(p.id, p));
+
+        const updatedData: UserCloudData = {
+          email: cleanEmail,
+          name: existing.name || cleanEmail.split('@')[0],
+          books: Array.from(bookMap.values()),
+          customTracks: Array.from(trackMap.values()),
+          userProfiles: Array.from(profileMap.values()),
+          lastSyncedAt: Date.now(),
+        };
+
+        cloudSyncStore.set(cleanEmail, updatedData);
+        persistCacheToDisk();
+
+        return sendJson(res, 200, {
+          success: true,
+          email: cleanEmail,
+          books: updatedData.books,
+          customTracks: updatedData.customTracks,
+          userProfiles: updatedData.userProfiles,
+          lastSyncedAt: updatedData.lastSyncedAt,
+        });
+      } catch (err: any) {
+        console.error('Error in /api/sync/data POST:', err);
+        return sendJson(res, 500, { error: err.message || 'Lỗi đồng bộ dữ liệu' });
+      }
     }
   }
 

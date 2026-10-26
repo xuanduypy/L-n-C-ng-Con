@@ -22,14 +22,17 @@ export interface Book {
   isFavorite?: boolean;
   bookmarkedChapterId?: string;
   bookmarkedSentenceIndex?: number;
+  readCount?: number; // Số lượt nghe / đọc
+  likesCount?: number; // Số lượt thả tim
+  appliedVoiceType?: 'user_voice' | 'gemini' | 'browser';
 }
 
 export type PlaybackSpeed = 0.75 | 1.0 | 1.25 | 1.5 | 1.75 | 2.0;
 
 export interface UserVoiceProfile {
   id: string;
-  name: string; // e.g. 'Giọng Mẹ Yêu', 'Giọng Ba Kể'
-  narratorRole: 'mom' | 'dad' | 'grandma' | 'storyteller';
+  name: string; // e.g. 'Giọng Của Tôi', 'Giọng Mẹ Yêu', 'Giọng Ba Kể'
+  narratorRole: 'mom' | 'dad' | 'grandma' | 'storyteller' | 'user';
   audioBlobUrl?: string;
   audioBase64?: string;
   recordedDurationSec?: number;
@@ -60,6 +63,17 @@ export interface VoiceSettings {
   userProfiles?: UserVoiceProfile[];
 }
 
+export interface MusicAlbum {
+  id: string;
+  title: string;
+  description: string;
+  coverGradient: string;
+  coverBgColor: string;
+  category: string;
+  icon?: string;
+  trackCount?: number;
+}
+
 export interface MusicTrack {
   id: string;
   title: string;
@@ -75,7 +89,21 @@ export interface MusicTrack {
   isFavorite?: boolean;
   isCustom?: boolean;
   createdAt: number;
+  albumId?: string;
+  albumTitle?: string;
+  playCount?: number;
+  likesCount?: number;
 }
 
-export type ViewMode = 'home' | 'search' | 'library' | 'book-detail' | 'music-library';
+export interface UserAccount {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+  lastSyncedAt?: number;
+  isLoggedIn: boolean;
+}
+
+export type ViewMode = 'home' | 'search' | 'library' | 'book-detail' | 'music-library' | 'book-library';
+
 

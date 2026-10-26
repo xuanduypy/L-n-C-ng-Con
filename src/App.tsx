@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode } from './types/book';
+import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode, UserVoiceProfile } from './types/book';
 import { INITIAL_BOOKS } from './data/initialBooks';
 import { useBookAudioPlayer } from './hooks/useBookAudioPlayer';
 import { useMusicAudioPlayer } from './hooks/useMusicAudioPlayer';
@@ -8,13 +8,18 @@ import { SpotifyTopBar } from './components/SpotifyTopBar';
 import { SpotifyBottomPlayer } from './components/SpotifyBottomPlayer';
 import { HomeBrowseView } from './components/HomeBrowseView';
 import { BookDetailView } from './components/BookDetailView';
+import { BookLibraryView } from './components/BookLibraryView';
 import { MusicLibraryView } from './components/MusicLibraryView';
 import { ReaderModeView } from './components/ReaderModeView';
 import { AddBookModal } from './components/AddBookModal';
 import { AddMusicModal } from './components/AddMusicModal';
 import { MusicLyricsModal } from './components/MusicLyricsModal';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal';
+import { UserAccountModal } from './components/UserAccountModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { useSleepTimer } from './hooks/useSleepTimer';
+import { useUserSync } from './hooks/useUserSync';
 
 const STORAGE_BOOKS_KEY = 'audiobookify_books_library';
 
@@ -59,6 +64,7 @@ export default function App() {
   const [selectedTrackForLyrics, setSelectedTrackForLyrics] = useState<MusicTrack | null>(null);
   const [targetBookForChapter, setTargetBookForChapter] = useState<Book | null>(null);
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState<boolean>(false);
+  const [isUserAccountOpen, setIsUserAccountOpen] = useState<boolean>(false);
 
   // 5. Audio Hooks (Books & Music)
   const bookAudio = useBookAudioPlayer(books);
@@ -67,6 +73,35 @@ export default function App() {
     // Automatically pause book reading when music starts
     bookAudio.pause();
     setPlaybackMode('music');
+  });
+
+  // 6. User Account & Cloud Sync Hook
+  const userSync = useUserSync((cloudData) => {
+    if (cloudData.books && cloudData.books.length > 0) {
+      setBooks((prev) => {
+        const map = new Map<string, Book>();
+        prev.forEach((b) => map.set(b.id, b));
+        cloudData.books?.forEach((b) => map.set(b.id, b));
+        return Array.from(map.values());
+      });
+    }
+    if (cloudData.customTracks && cloudData.customTracks.length > 0) {
+      cloudData.customTracks.forEach((t) => {
+        musicAudio.addCustomTrack(t);
+      });
+    }
+    if (cloudData.userProfiles && cloudData.userProfiles.length > 0) {
+      bookAudio.updateVoiceSettings({
+        userProfiles: cloudData.userProfiles,
+      });
+    }
+  });
+
+  const sleepTimer = useSleepTimer({
+    onTimerEnd: () => {
+      bookAudio.pause();
+      musicAudio.pauseMusic();
+    },
   });
 
   // Navigation handlers
@@ -112,6 +147,17 @@ export default function App() {
     (book: Book, chapter?: Chapter) => {
       musicAudio.pauseMusic();
       setPlaybackMode('book');
+
+      // If book has appliedVoiceType === 'user_voice', activate user voice engine
+      if (book.appliedVoiceType === 'user_voice') {
+        bookAudio.updateVoiceSettings({ engine: 'user_voice' });
+      }
+
+      // Increment readCount
+      setBooks((prev) =>
+        prev.map((b) => (b.id === book.id ? { ...b, readCount: (b.readCount || 0) + 1 } : b))
+      );
+
       bookAudio.playBook(book, chapter);
     },
     [bookAudio, musicAudio]
@@ -137,12 +183,16 @@ export default function App() {
   // Add Book
   const handleAddBook = useCallback(
     (newBook: Book) => {
-      setBooks((prev) => [newBook, ...prev]);
+      setBooks((prev) => {
+        const updated = [newBook, ...prev];
+        // Trigger background cloud sync
+        userSync.syncCloudData(updated, musicAudio.tracks, bookAudio.voiceSettings.userProfiles || []);
+        return updated;
+      });
       handleSelectBook(newBook);
-      // Auto-start reading
       handlePlayBook(newBook);
     },
-    [handlePlayBook, handleSelectBook]
+    [bookAudio.voiceSettings.userProfiles, handlePlayBook, handleSelectBook, musicAudio.tracks, userSync]
   );
 
   // Add Chapter to Existing Book
@@ -205,15 +255,34 @@ export default function App() {
   // Toggle Favorite Book
   const handleToggleFavorite = useCallback((bookId: string) => {
     setBooks((prev) =>
-      prev.map((b) => (b.id === bookId ? { ...b, isFavorite: !b.isFavorite } : b))
+      prev.map((b) => {
+        if (b.id === bookId) {
+          const nextFav = !b.isFavorite;
+          return {
+            ...b,
+            isFavorite: nextFav,
+            likesCount: nextFav ? (b.likesCount || 0) + 1 : Math.max(0, (b.likesCount || 1) - 1),
+          };
+        }
+        return b;
+      })
     );
     setSelectedBook((prev) =>
-      prev && prev.id === bookId ? { ...prev, isFavorite: !prev.isFavorite } : prev
+      prev && prev.id === bookId
+        ? {
+            ...prev,
+            isFavorite: !prev.isFavorite,
+            likesCount: !prev.isFavorite ? (prev.likesCount || 0) + 1 : Math.max(0, (prev.likesCount || 1) - 1),
+          }
+        : prev
     );
   }, []);
 
   return (
     <div className="h-screen w-screen bg-black text-white flex flex-col overflow-hidden font-sans select-none">
+      {/* Mobile PWA Install Banner */}
+      <PWAInstallBanner />
+
       {/* Upper Area: Sidebar + Main Content Stage */}
       <div className="flex flex-1 overflow-hidden p-0 md:p-2 md:gap-2">
         {/* Left Spotify Sidebar (Desktop only) */}
@@ -232,6 +301,9 @@ export default function App() {
           onNavigateMusic={() => {
             navigateTo('music-library');
           }}
+          onNavigateBookLibrary={() => {
+            navigateTo('book-library');
+          }}
           onSelectBook={handleSelectBook}
           onOpenAddModal={() => {
             setTargetBookForChapter(null);
@@ -243,7 +315,7 @@ export default function App() {
         />
 
         {/* Right Main Stage */}
-        <main className="flex-1 bg-[#121212] rounded-none md:rounded-lg overflow-hidden flex flex-col relative shadow-xl">
+        <main className="flex-1 bg-[#121212] rounded-none md:rounded-2xl overflow-hidden flex flex-col relative shadow-xl">
           {/* Persistent Top Navigation Bar */}
           <SpotifyTopBar
             currentView={currentView}
@@ -261,6 +333,9 @@ export default function App() {
               setTargetBookForChapter(null);
               setIsAddModalOpen(true);
             }}
+            onOpenUserAccount={() => setIsUserAccountOpen(true)}
+            user={userSync.user}
+            syncStatus={userSync.syncStatus}
             bookTitle={selectedBook?.title}
             voiceSettings={bookAudio.voiceSettings}
           />
@@ -284,6 +359,22 @@ export default function App() {
                 isPlayingMusic={musicAudio.isPlayingMusic}
                 onPlayTrack={handlePlayTrack}
                 onNavigateMusic={() => navigateTo('music-library')}
+                onNavigateBookLibrary={() => navigateTo('book-library')}
+              />
+            )}
+
+            {currentView === 'book-library' && (
+              <BookLibraryView
+                books={books}
+                activeBookId={bookAudio.currentBook?.id || null}
+                isPlaying={bookAudio.isPlaying}
+                onSelectBook={handleSelectBook}
+                onPlayBook={handlePlayBook}
+                onOpenAddModal={() => {
+                  setTargetBookForChapter(null);
+                  setIsAddModalOpen(true);
+                }}
+                onToggleFavorite={handleToggleFavorite}
               />
             )}
 
@@ -394,6 +485,12 @@ export default function App() {
           bookAudio.setVolume(v);
         }}
         onToggleMute={bookAudio.toggleMute}
+
+        // Sleep Timer
+        sleepTimerOption={sleepTimer.timerOption}
+        sleepTimerFormatted={sleepTimer.formattedTime}
+        onSetSleepTimer={sleepTimer.setTimer}
+        isSleepTimerActive={sleepTimer.isActive}
       />
 
       {/* Synchronized Reader / Spotify Lyrics View Overlay for Books */}
@@ -442,16 +539,44 @@ export default function App() {
         onAddTrack={(newTrack) => {
           musicAudio.addCustomTrack(newTrack);
           handlePlayTrack(newTrack);
+          userSync.syncCloudData(books, [newTrack, ...musicAudio.tracks], bookAudio.voiceSettings.userProfiles || []);
         }}
       />
 
-      {/* Voice Settings Modal */}
+      {/* Voice Settings Modal (Phòng Thu Giọng Người Dùng) */}
       <VoiceSettingsModal
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
         settings={bookAudio.voiceSettings}
-        onUpdateSettings={bookAudio.updateVoiceSettings}
+        onUpdateSettings={(newSettings) => {
+          bookAudio.updateVoiceSettings(newSettings);
+          if (newSettings.userProfiles) {
+            userSync.syncCloudData(books, musicAudio.tracks, newSettings.userProfiles);
+          }
+        }}
         availableVoices={bookAudio.availableVoices}
+      />
+
+      {/* User Account & App Settings Modal (Clicking on user icon opens this) */}
+      <UserAccountModal
+        isOpen={isUserAccountOpen}
+        onClose={() => setIsUserAccountOpen(false)}
+        user={userSync.user}
+        syncStatus={userSync.syncStatus}
+        lastSyncedAt={userSync.lastSyncedAt}
+        onManualSync={() => {
+          userSync.syncCloudData(books, musicAudio.tracks, bookAudio.voiceSettings.userProfiles || []);
+        }}
+        onLogin={userSync.loginWithEmail}
+        onLogout={userSync.logout}
+        onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
+        totalBooksCount={books.length}
+        totalTracksCount={musicAudio.tracks.length}
+        totalCustomCount={books.filter((b) => b.id.startsWith('custom-')).length + musicAudio.tracks.filter((t) => t.isCustom).length}
+        sleepTimerOption={sleepTimer.timerOption}
+        sleepTimerFormatted={sleepTimer.formattedTime}
+        onSetSleepTimer={sleepTimer.setTimer}
+        voiceSettings={bookAudio.voiceSettings}
       />
 
       {/* Dedicated Mobile Bottom Navigation (Fixed on phones) */}
@@ -461,14 +586,11 @@ export default function App() {
           setSearchQuery('');
           navigateTo('home');
         }}
-        onNavigateSearch={() => {
-          navigateTo('search');
-        }}
         onNavigateMusic={() => {
           navigateTo('music-library');
         }}
-        onNavigateLibrary={() => {
-          navigateTo('home');
+        onNavigateBookLibrary={() => {
+          navigateTo('book-library');
         }}
         onOpenAddBook={() => {
           setTargetBookForChapter(null);
@@ -477,9 +599,10 @@ export default function App() {
         onOpenAddMusic={() => {
           setIsAddMusicModalOpen(true);
         }}
-        onOpenVoiceSettings={() => {
-          setIsVoiceSettingsOpen(true);
+        onOpenUserAccount={() => {
+          setIsUserAccountOpen(true);
         }}
+        user={userSync.user}
       />
     </div>
   );

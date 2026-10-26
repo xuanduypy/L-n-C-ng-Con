@@ -302,12 +302,22 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     [playSynthesizedTrack, stopAllAudio]
   );
 
+  // Increment playCount for track
+  const recordTrackPlay = useCallback((trackId: string) => {
+    setTracks((prev) =>
+      prev.map((t) =>
+        t.id === trackId ? { ...t, playCount: (t.playCount || 0) + 1 } : t
+      )
+    );
+  }, []);
+
   // Unified Play Track method
   const playTrack = useCallback(
     (track: MusicTrack) => {
       onMusicPlayStart?.();
       setCurrentTrack(track);
       currentTrackRef.current = track;
+      recordTrackPlay(track.id);
 
       // Track in shuffle history
       if (!shuffleHistoryRef.current.includes(track.id)) {
@@ -328,7 +338,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
         setDurationSec(track.durationSec || 60);
       }
     },
-    [onMusicPlayStart, playAudioFileTrack, playSynthesizedTrack]
+    [onMusicPlayStart, playAudioFileTrack, playSynthesizedTrack, recordTrackPlay]
   );
 
   // Pause music
@@ -495,6 +505,45 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     },
     [durationSec, playSynthesizedTrack]
   );
+
+  // Sync with navigator.mediaSession for Lock Screen & Background playback
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator) || !currentTrack) return;
+
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist || 'DiNo Music',
+        album: currentTrack.albumTitle || 'DiNo - Kho Nhạc Thiếu Nhi',
+        artwork: [
+          { src: currentTrack.coverUrl || '/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        ],
+      });
+
+      navigator.mediaSession.playbackState = isPlayingMusic ? 'playing' : 'paused';
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        resumeMusic();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        pauseMusic();
+      });
+      navigator.mediaSession.setActionHandler('nexttrack', () => {
+        handleNextTrackRef.current?.();
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => {
+        handlePrevTrack();
+      });
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined) {
+          seekTrack(details.seekTime);
+        }
+      });
+    } catch (err) {
+      console.warn('Error configuring mediaSession:', err);
+    }
+  }, [currentTrack, isPlayingMusic, pauseMusic, resumeMusic, seekTrack, handlePrevTrack]);
 
   // Add custom track
   const addCustomTrack = useCallback((newTrack: MusicTrack) => {

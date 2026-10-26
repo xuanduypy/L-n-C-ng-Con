@@ -17,6 +17,7 @@ interface HomeBrowseViewProps {
   isPlayingMusic?: boolean;
   onPlayTrack?: (track: MusicTrack) => void;
   onNavigateMusic?: () => void;
+  onNavigateBookLibrary?: () => void;
 }
 
 export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
@@ -31,6 +32,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   isPlayingMusic = false,
   onPlayTrack,
   onNavigateMusic,
+  onNavigateBookLibrary,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
 
@@ -83,7 +85,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   const recentQuickBooks = books.slice(0, 6);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#1f382a]/70 via-[#121212] to-[#121212] p-3 md:p-8 pb-36 md:pb-12 space-y-6 md:space-y-8 text-white select-none">
+    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#1f382a]/70 via-[#121212] to-[#121212] p-3 md:p-8 pb-44 md:pb-14 space-y-6 md:space-y-8 text-white select-none">
       {/* Category Pills Header */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {categories.map((cat) => (
@@ -318,11 +320,25 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
       {selectedCategory !== 'Kho Nhạc' && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white">
-              {searchQuery
-                ? `Kết quả tìm kiếm cho "${searchQuery}" (${filteredBooks.length})`
-                : 'Kho Sách Hay Khuyên Đọc'}
-            </h3>
+            <div>
+              <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-amber-400" />
+                <span>{searchQuery ? `Kết quả tìm kiếm cho "${searchQuery}" (${filteredBooks.length})` : 'Kho Sách Hay Khuyên Đọc'}</span>
+              </h3>
+              <p className="text-xs text-neutral-400 mt-1">
+                Các tác phẩm văn học thiếu nhi, ngụ ngôn đạo đức và tản văn cuộc sống
+              </p>
+            </div>
+
+            {onNavigateBookLibrary && (
+              <button
+                onClick={onNavigateBookLibrary}
+                className="flex items-center gap-1 text-xs font-bold text-neutral-400 hover:text-white transition-colors group"
+              >
+                <span>Xem tất cả</span>
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            )}
           </div>
 
           {filteredBooks.length === 0 ? (
@@ -436,9 +452,15 @@ const BookCard: React.FC<BookCardProps> = ({
 
       {/* Author & Category */}
       <p className="text-xs text-neutral-400 truncate mt-1">{book.author}</p>
-      <p className="text-[11px] text-neutral-400 truncate mt-0.5">
-        {book.category}
-      </p>
+      <div className="flex items-center justify-between text-[11px] text-neutral-400 mt-2 pt-2 border-t border-[#262626]">
+        <span className="text-amber-300 font-medium">
+          {book.readCount ? `${book.readCount.toLocaleString()} đọc` : '3.4k đọc'}
+        </span>
+        <span className="flex items-center gap-1 text-rose-400 font-medium">
+          <Heart className="w-3 h-3 fill-rose-500" />
+          {book.likesCount || 890}
+        </span>
+      </div>
     </div>
   );
 };

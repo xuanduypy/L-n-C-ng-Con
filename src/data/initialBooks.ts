@@ -113,6 +113,9 @@ export const INITIAL_BOOKS: Book[] = [
     createdAt: Date.now() - 86400000 * 3,
     lastReadAt: Date.now() - 3600000 * 2,
     isFavorite: true,
+    readCount: 3420,
+    likesCount: 890,
+    appliedVoiceType: 'user_voice',
     chapters: [
       buildChapter('dm-c1', 'Chương 1: Bài học đường đời đầu tiên', deMenChapter1, 1),
       buildChapter('dm-c2', 'Chương 2: Nỗi ân hận và lời hứa với Dế Choắt', deMenChapter2, 2),
@@ -130,6 +133,9 @@ export const INITIAL_BOOKS: Book[] = [
     createdAt: Date.now() - 86400000 * 5,
     lastReadAt: Date.now() - 3600000 * 5,
     isFavorite: true,
+    readCount: 4890,
+    likesCount: 1250,
+    appliedVoiceType: 'gemini',
     chapters: [
       buildChapter('dnt-c1', 'Chương 1: Không chỉ trích, oán trách hay than phiền', dacNhanTamChapter1, 1),
       buildChapter('dnt-c2', 'Chương 2: Thành thật khen ngợi và biết ơn', dacNhanTamChapter2, 2),
@@ -147,6 +153,9 @@ export const INITIAL_BOOKS: Book[] = [
     createdAt: Date.now() - 86400000 * 8,
     lastReadAt: Date.now() - 3600000 * 24,
     isFavorite: false,
+    readCount: 2650,
+    likesCount: 670,
+    appliedVoiceType: 'user_voice',
     chapters: [
       buildChapter('htb-c1', 'Chương 1: Con trăn khổng lồ và chiếc mũ', hoangTuBeChapter1, 1),
       buildChapter('htb-c2', 'Chương 2: Gặp gỡ giữa sa mạc Sahara', hoangTuBeChapter2, 2),
@@ -162,6 +171,10 @@ export const INITIAL_BOOKS: Book[] = [
     coverBgColor: '#be123c',
     coverUrl: 'https://images.unsplash.com/photo-1532012164546-f432f2e3777f?auto=format&fit=crop&w=600&q=80',
     createdAt: Date.now() - 86400000 * 12,
+    readCount: 3980,
+    likesCount: 1105,
+    isFavorite: true,
+    appliedVoiceType: 'user_voice',
     chapters: [
       buildChapter('ct-c1', 'Chương 1: Sự tích cây Vú Sữa', cayVuSuaChapter1, 1),
       buildChapter('ct-c2', 'Chương 2: Thạch Sanh đánh Chằn Tinh', thachSanhChapter1, 2),

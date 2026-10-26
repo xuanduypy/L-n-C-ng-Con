@@ -14,14 +14,16 @@ export default defineConfig(() => {
         includeAssets: ['apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Lớn Cùng Con - Đọc Sách & Nghe Nhạc',
-          short_name: 'LớnCùngCon',
-          description: 'Ứng dụng đọc sách, sách nói AI và nghe nhạc thư giãn cùng chú cún vàng vui vẻ.',
+          name: 'DiNo - Đọc Sách & Nghe Nhạc',
+          short_name: 'DiNo',
+          description: 'DiNo - Ứng dụng đọc sách nói AI, kho nhạc thiếu nhi với các album tuyển chọn, phòng thu giọng người dùng và đồng bộ dữ liệu đám mây.',
           theme_color: '#FEF08A',
           background_color: '#FEFCE8',
           display: 'standalone',
+          orientation: 'portrait-primary',
           start_url: '/',
           scope: '/',
+          categories: ['education', 'music', 'books'],
           icons: [
             {
               src: '/pwa-192x192.png',
@@ -42,10 +44,25 @@ export default defineConfig(() => {
               purpose: 'maskable',
             },
           ],
+          shortcuts: [
+            {
+              name: 'Kho Nhạc',
+              short_name: 'Nhạc',
+              description: 'Nghe các album nhạc thiếu nhi rộn ràng',
+              url: '/?tab=music',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+            {
+              name: 'Kho Sách',
+              short_name: 'Sách',
+              description: 'Đọc và nghe sách nói AI',
+              url: '/?tab=books',
+              icons: [{ src: '/pwa-192x192.png', sizes: '192x192' }],
+            },
+          ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
       {
