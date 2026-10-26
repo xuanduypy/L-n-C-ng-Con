@@ -40,3 +40,11 @@
 input[type="range"] {
   accent-color: #1ed760;
 }
+
+/* Mobile Safe Areas for iOS Home Indicator and Android */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}

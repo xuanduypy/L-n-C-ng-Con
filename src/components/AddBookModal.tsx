@@ -46,6 +46,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
   // Chapter fields
   const [chapterTitle, setChapterTitle] = useState('Chương 1: Khởi đầu');
   const [textContent, setTextContent] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   if (!isOpen) return null;
 
@@ -54,6 +55,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
 
   const handlePasteSample = () => {
     setTextContent(SAMPLE_TEXT);
+    setErrorMessage('');
     if (!title && !isAddingChapterOnly) {
       setTitle('Bình Minh Trong Trẻo');
       setAuthor('Tản Văn Đời Sống');
@@ -66,9 +68,10 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
     e.preventDefault();
 
     if (!textContent.trim()) {
-      alert('Vui lòng nhập nội dung văn bản cho cuốn sách/chương!');
+      setErrorMessage('Vui lòng nhập hoặc dán nội dung văn bản cho cuốn sách!');
       return;
     }
+    setErrorMessage('');
 
     if (isAddingChapterOnly && targetBookForChapter && onAddChapterToBook) {
       // Add chapter to existing book
@@ -143,7 +146,20 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs md:text-sm">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 text-xs md:text-sm">
+          {errorMessage && (
+            <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold flex items-center justify-between">
+              <span>{errorMessage}</span>
+              <button
+                type="button"
+                onClick={() => setErrorMessage('')}
+                className="text-rose-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* Quick Paste Sample Button */}
           <div className="flex items-center justify-between p-3 rounded-lg bg-[#242424] border border-[#333333]">
             <div className="flex items-center gap-2 text-neutral-300">

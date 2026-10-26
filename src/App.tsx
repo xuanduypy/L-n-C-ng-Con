@@ -14,6 +14,7 @@ import { AddBookModal } from './components/AddBookModal';
 import { AddMusicModal } from './components/AddMusicModal';
 import { MusicLyricsModal } from './components/MusicLyricsModal';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal';
+import { MobileBottomNav } from './components/MobileBottomNav';
 
 const STORAGE_BOOKS_KEY = 'audiobookify_books_library';
 
@@ -214,8 +215,8 @@ export default function App() {
   return (
     <div className="h-screen w-screen bg-black text-white flex flex-col overflow-hidden font-sans select-none">
       {/* Upper Area: Sidebar + Main Content Stage */}
-      <div className="flex flex-1 overflow-hidden p-2 gap-2">
-        {/* Left Spotify Sidebar */}
+      <div className="flex flex-1 overflow-hidden p-0 md:p-2 md:gap-2">
+        {/* Left Spotify Sidebar (Desktop only) */}
         <SpotifySidebar
           books={books}
           activeBookId={bookAudio.currentBook?.id || null}
@@ -242,7 +243,7 @@ export default function App() {
         />
 
         {/* Right Main Stage */}
-        <main className="flex-1 bg-[#121212] rounded-lg overflow-hidden flex flex-col relative shadow-xl">
+        <main className="flex-1 bg-[#121212] rounded-none md:rounded-lg overflow-hidden flex flex-col relative shadow-xl">
           {/* Persistent Top Navigation Bar */}
           <SpotifyTopBar
             currentView={currentView}
@@ -256,6 +257,11 @@ export default function App() {
             onNavigateBack={handleNavigateBack}
             onNavigateForward={handleNavigateForward}
             onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
+            onOpenAddModal={() => {
+              setTargetBookForChapter(null);
+              setIsAddModalOpen(true);
+            }}
+            bookTitle={selectedBook?.title}
             voiceSettings={bookAudio.voiceSettings}
           />
 
@@ -446,6 +452,34 @@ export default function App() {
         settings={bookAudio.voiceSettings}
         onUpdateSettings={bookAudio.updateVoiceSettings}
         availableVoices={bookAudio.availableVoices}
+      />
+
+      {/* Dedicated Mobile Bottom Navigation (Fixed on phones) */}
+      <MobileBottomNav
+        currentView={currentView}
+        onNavigateHome={() => {
+          setSearchQuery('');
+          navigateTo('home');
+        }}
+        onNavigateSearch={() => {
+          navigateTo('search');
+        }}
+        onNavigateMusic={() => {
+          navigateTo('music-library');
+        }}
+        onNavigateLibrary={() => {
+          navigateTo('home');
+        }}
+        onOpenAddBook={() => {
+          setTargetBookForChapter(null);
+          setIsAddModalOpen(true);
+        }}
+        onOpenAddMusic={() => {
+          setIsAddMusicModalOpen(true);
+        }}
+        onOpenVoiceSettings={() => {
+          setIsVoiceSettingsOpen(true);
+        }}
       />
     </div>
   );

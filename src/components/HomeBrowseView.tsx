@@ -83,7 +83,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   const recentQuickBooks = books.slice(0, 6);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#1f382a]/70 via-[#121212] to-[#121212] p-4 md:p-8 space-y-8 text-white select-none">
+    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#1f382a]/70 via-[#121212] to-[#121212] p-3 md:p-8 pb-36 md:pb-12 space-y-6 md:space-y-8 text-white select-none">
       {/* Category Pills Header */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {categories.map((cat) => (
@@ -155,7 +155,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                     className={`absolute right-3 w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-lg transition-all transform ${
                       isCurrentPlaying
                         ? 'opacity-100 scale-100'
-                        : 'opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:scale-95'
+                        : 'opacity-100 sm:opacity-0 sm:translate-y-1 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 hover:scale-105 active:scale-95'
                     }`}
                     title={isCurrentPlaying ? 'Tạm dừng' : 'Nghe ngay'}
                   >
@@ -234,7 +234,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                       className={`absolute bottom-2 right-2 w-11 h-11 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-2xl transition-all transform ${
                         isPlayingThisTrack
                           ? 'opacity-100 scale-100'
-                          : 'opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:scale-95'
+                          : 'opacity-100 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 hover:scale-105 active:scale-95'
                       }`}
                       title={isPlayingThisTrack ? 'Tạm dừng' : 'Phát bài hát'}
                     >
@@ -412,7 +412,7 @@ const BookCard: React.FC<BookCardProps> = ({
           className={`absolute bottom-2 right-2 w-11 h-11 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-2xl transition-all transform ${
             isPlayingThis
               ? 'opacity-100 scale-100'
-              : 'opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 hover:scale-105 active:scale-95'
+              : 'opacity-100 sm:opacity-0 sm:translate-y-2 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 hover:scale-105 active:scale-95'
           }`}
           title={isPlayingThis ? 'Tạm dừng' : 'Nghe toàn bộ sách'}
         >

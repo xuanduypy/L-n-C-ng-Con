@@ -45,7 +45,7 @@ export const SpotifySidebar: React.FC<SpotifySidebarProps> = ({
   });
 
   return (
-    <aside className="w-64 md:w-72 bg-black flex flex-col h-full select-none border-r border-[#1f1f1f] text-[#b3b3b3] p-2 gap-2 shrink-0">
+    <aside className="hidden md:flex w-64 md:w-72 bg-black flex-col h-full select-none border-r border-[#1f1f1f] text-[#b3b3b3] p-2 gap-2 shrink-0">
       {/* Top Nav Box */}
       <div className="bg-[#121212] rounded-lg p-4 flex flex-col gap-4">
         {/* Brand Header */}
