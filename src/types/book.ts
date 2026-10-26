@@ -97,11 +97,38 @@ export interface MusicTrack {
 
 export const ADMIN_SUPER_EMAIL = 'xuanduy.cn@gmail.com';
 
+export interface ZodiacOption {
+  id: string;
+  name: string; // Tý, Sửu, Dần...
+  animal: string; // Chuột, Trâu, Hổ...
+  emoji: string;
+  color: string;
+}
+
+export const ZODIAC_ANIMALS: ZodiacOption[] = [
+  { id: 'ty', name: 'Tý', animal: 'Chuột', emoji: '🐭', color: 'from-amber-400 to-yellow-600' },
+  { id: 'suu', name: 'Sửu', animal: 'Trâu', emoji: '🐂', color: 'from-emerald-500 to-green-700' },
+  { id: 'dan', name: 'Dần', animal: 'Hổ', emoji: '🐯', color: 'from-orange-500 to-red-600' },
+  { id: 'mao', name: 'Mão', animal: 'Mèo', emoji: '🐱', color: 'from-pink-400 to-rose-600' },
+  { id: 'thin', name: 'Thìn', animal: 'Rồng', emoji: '🐲', color: 'from-amber-500 to-yellow-500' },
+  { id: 'ty_ran', name: 'Tỵ', animal: 'Rắn', emoji: '🐍', color: 'from-teal-400 to-emerald-600' },
+  { id: 'ngo', name: 'Ngọ', animal: 'Ngựa', emoji: '🐴', color: 'from-blue-400 to-indigo-600' },
+  { id: 'mui', name: 'Mùi', animal: 'Dê', emoji: '🐐', color: 'from-purple-400 to-fuchsia-600' },
+  { id: 'than', name: 'Thân', animal: 'Khỉ', emoji: '🐵', color: 'from-yellow-400 to-orange-500' },
+  { id: 'dau', name: 'Dậu', animal: 'Gà', emoji: '🐔', color: 'from-red-400 to-rose-600' },
+  { id: 'tuat', name: 'Tuất', animal: 'Chó', emoji: '🐶', color: 'from-cyan-400 to-blue-600' },
+  { id: 'hoi', name: 'Hợi', animal: 'Heo', emoji: '🐷', color: 'from-pink-300 to-rose-400' },
+];
+
 export interface UserAccount {
   id: string;
   email: string;
   name: string;
+  username?: string;
   avatar?: string;
+  zodiacId?: string;
+  zodiacEmoji?: string;
+  hasPassword?: boolean;
   role?: 'admin' | 'user';
   isAdmin?: boolean;
   lastSyncedAt?: number;
