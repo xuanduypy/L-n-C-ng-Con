@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { UserAccount, Book, MusicTrack, UserVoiceProfile } from '../types/book';
+import { UserAccount, Book, MusicTrack, UserVoiceProfile, ADMIN_SUPER_EMAIL } from '../types/book';
 
 const STORAGE_USER_KEY = 'dino_user_account';
 
@@ -8,20 +8,30 @@ export function useUserSync(
     books?: Book[];
     customTracks?: MusicTrack[];
     userProfiles?: UserVoiceProfile[];
+    deletedBookIds?: string[];
+    deletedTrackIds?: string[];
   }) => void
 ) {
   const [user, setUser] = useState<UserAccount | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_USER_KEY);
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        const isAdmin = parsed.email?.trim().toLowerCase() === ADMIN_SUPER_EMAIL;
+        return {
+          ...parsed,
+          role: isAdmin ? 'admin' : 'user',
+          isAdmin,
+        };
       }
     } catch {}
-    // Default guest profile with default email if none
+    // Default user account: xuanduy.cn@gmail.com with Super Admin rights
     return {
-      id: 'usr-guest',
-      email: 'xuanduy.cn@gmail.com', // Pre-fill with user email from session
-      name: 'Bạn',
+      id: 'usr-admin-xuanduy',
+      email: ADMIN_SUPER_EMAIL,
+      name: 'Xuân Duy (Admin)',
+      role: 'admin',
+      isAdmin: true,
       isLoggedIn: true,
       lastSyncedAt: Date.now(),
     };
@@ -47,11 +57,14 @@ export function useUserSync(
     if (!email || !email.includes('@')) return false;
 
     setSyncStatus('syncing');
+    const cleanEmail = email.trim().toLowerCase();
+    const isSuperAdmin = cleanEmail === ADMIN_SUPER_EMAIL;
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), name: name?.trim() }),
+        body: JSON.stringify({ email: cleanEmail, name: name?.trim() }),
       });
 
       if (!res.ok) throw new Error('Không thể đăng nhập');
@@ -62,6 +75,8 @@ export function useUserSync(
           id: data.user.id,
           email: data.user.email,
           name: data.user.name,
+          role: isSuperAdmin ? 'admin' : 'user',
+          isAdmin: isSuperAdmin,
           isLoggedIn: true,
           lastSyncedAt: data.user.lastSyncedAt || Date.now(),
         };
@@ -75,6 +90,8 @@ export function useUserSync(
             books: data.cloudData.books,
             customTracks: data.cloudData.customTracks,
             userProfiles: data.cloudData.userProfiles,
+            deletedBookIds: data.cloudData.deletedBookIds,
+            deletedTrackIds: data.cloudData.deletedTrackIds,
           });
         }
         return true;
@@ -84,8 +101,10 @@ export function useUserSync(
       // Fallback local signin
       const localUser: UserAccount = {
         id: `usr-${Date.now()}`,
-        email: email.trim(),
-        name: name?.trim() || email.split('@')[0],
+        email: cleanEmail,
+        name: name?.trim() || (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]),
+        role: isSuperAdmin ? 'admin' : 'user',
+        isAdmin: isSuperAdmin,
         isLoggedIn: true,
         lastSyncedAt: Date.now(),
       };
@@ -109,7 +128,8 @@ export function useUserSync(
     async (
       books: Book[],
       customTracks: MusicTrack[],
-      userProfiles: UserVoiceProfile[]
+      userProfiles: UserVoiceProfile[],
+      deletedIds?: { deletedBookIds?: string[]; deletedTrackIds?: string[] }
     ) => {
       if (!user?.email || isSyncingRef.current) return;
       isSyncingRef.current = true;
@@ -124,6 +144,8 @@ export function useUserSync(
             books: books.filter((b) => b.id.startsWith('custom-') || b.isFavorite),
             customTracks: customTracks.filter((t) => t.isCustom || t.isFavorite),
             userProfiles,
+            deletedBookIds: user.isAdmin ? deletedIds?.deletedBookIds : undefined,
+            deletedTrackIds: user.isAdmin ? deletedIds?.deletedTrackIds : undefined,
           }),
         });
 
@@ -142,6 +164,8 @@ export function useUserSync(
               books: result.books,
               customTracks: result.customTracks,
               userProfiles: result.userProfiles,
+              deletedBookIds: result.deletedBookIds,
+              deletedTrackIds: result.deletedTrackIds,
             });
           }
         } else {

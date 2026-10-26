@@ -18,7 +18,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(async (req, res, next) => {
   const url = req.url || '';
   const pathname = url.split('?')[0];
-  if (pathname.startsWith('/api/')) {
+  if (pathname.startsWith('/api/') || pathname.startsWith('/.well-known/')) {
     try {
       const handled = await handleApiRoute(req, res, pathname);
       if (handled) return;

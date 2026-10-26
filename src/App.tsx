@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode, UserVoiceProfile } from './types/book';
+import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode, UserVoiceProfile, ADMIN_SUPER_EMAIL } from './types/book';
 import { INITIAL_BOOKS } from './data/initialBooks';
 import { useBookAudioPlayer } from './hooks/useBookAudioPlayer';
 import { useMusicAudioPlayer } from './hooks/useMusicAudioPlayer';
@@ -77,6 +77,16 @@ export default function App() {
 
   // 6. User Account & Cloud Sync Hook
   const userSync = useUserSync((cloudData) => {
+    // Purge any items deleted by Admin
+    if (cloudData.deletedBookIds && cloudData.deletedBookIds.length > 0) {
+      const deletedSet = new Set(cloudData.deletedBookIds);
+      setBooks((prev) => prev.filter((b) => !deletedSet.has(b.id)));
+    }
+    if (cloudData.deletedTrackIds && cloudData.deletedTrackIds.length > 0) {
+      const deletedSet = new Set(cloudData.deletedTrackIds);
+      deletedSet.forEach((id) => musicAudio.deleteTrack(id));
+    }
+
     if (cloudData.books && cloudData.books.length > 0) {
       setBooks((prev) => {
         const map = new Map<string, Book>();
@@ -96,6 +106,11 @@ export default function App() {
       });
     }
   });
+
+  const isAdmin = Boolean(
+    userSync.user?.isAdmin ||
+    userSync.user?.email.trim().toLowerCase() === ADMIN_SUPER_EMAIL
+  );
 
   const sleepTimer = useSleepTimer({
     onTimerEnd: () => {
@@ -217,24 +232,40 @@ export default function App() {
     [selectedBook?.id]
   );
 
-  // Delete Book
+  // Delete Book (Super Admin xuanduy.cn@gmail.com only)
   const handleDeleteBook = useCallback(
     (bookId: string) => {
+      if (!isAdmin) {
+        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa sách.');
+        return;
+      }
       if (bookAudio.currentBook?.id === bookId) {
         bookAudio.pause();
       }
-      setBooks((prev) => prev.filter((b) => b.id !== bookId));
+      const updatedBooks = books.filter((b) => b.id !== bookId);
+      setBooks(updatedBooks);
       if (selectedBook?.id === bookId) {
         setSelectedBook(null);
         navigateTo('home');
       }
+      // Sync deletion to cloud store so all devices stay updated
+      userSync.syncCloudData(
+        updatedBooks,
+        musicAudio.tracks,
+        bookAudio.voiceSettings.userProfiles || [],
+        { deletedBookIds: [bookId] }
+      );
     },
-    [bookAudio, navigateTo, selectedBook?.id]
+    [isAdmin, bookAudio, books, selectedBook?.id, navigateTo, userSync, musicAudio.tracks]
   );
 
-  // Delete Chapter
+  // Delete Chapter (Super Admin xuanduy.cn@gmail.com only)
   const handleDeleteChapter = useCallback(
     (bookId: string, chapterId: string) => {
+      if (!isAdmin) {
+        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa chương.');
+        return;
+      }
       setBooks((prev) =>
         prev.map((b) => {
           if (b.id === bookId) {
@@ -249,7 +280,27 @@ export default function App() {
         })
       );
     },
-    [selectedBook?.id]
+    [isAdmin, selectedBook?.id]
+  );
+
+  // Delete Music Track (Super Admin xuanduy.cn@gmail.com only)
+  const handleDeleteTrack = useCallback(
+    (trackId: string) => {
+      if (!isAdmin) {
+        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa bài hát.');
+        return;
+      }
+      musicAudio.deleteTrack(trackId);
+      const remainingTracks = musicAudio.tracks.filter((t) => t.id !== trackId);
+      // Sync track deletion to cloud store
+      userSync.syncCloudData(
+        books,
+        remainingTracks,
+        bookAudio.voiceSettings.userProfiles || [],
+        { deletedTrackIds: [trackId] }
+      );
+    },
+    [isAdmin, musicAudio, userSync, books, bookAudio.voiceSettings.userProfiles]
   );
 
   // Toggle Favorite Book
@@ -383,6 +434,7 @@ export default function App() {
                 book={selectedBook}
                 activeChapterId={bookAudio.currentChapter?.id}
                 isPlaying={bookAudio.isPlaying}
+                isAdmin={isAdmin}
                 onPlayBook={handlePlayBook}
                 onTogglePlay={() => {
                   setPlaybackMode('book');
@@ -410,6 +462,7 @@ export default function App() {
                 tracks={musicAudio.tracks}
                 currentTrack={musicAudio.currentTrack}
                 isPlaying={musicAudio.isPlayingMusic}
+                isAdmin={isAdmin}
                 isShuffle={musicAudio.isShuffle}
                 onToggleShuffle={musicAudio.toggleShuffle}
                 onPlayRandomTrack={handlePlayRandomTrack}
@@ -420,7 +473,7 @@ export default function App() {
                   musicAudio.togglePlayMusic();
                 }}
                 onOpenAddMusicModal={() => setIsAddMusicModalOpen(true)}
-                onDeleteTrack={musicAudio.deleteTrack}
+                onDeleteTrack={handleDeleteTrack}
                 onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
                 onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
               />

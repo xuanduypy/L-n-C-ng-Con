@@ -19,6 +19,7 @@ interface BookDetailViewProps {
   book: Book;
   activeChapterId?: string;
   isPlaying: boolean;
+  isAdmin?: boolean;
   onPlayBook: (book: Book, chapter?: Chapter) => void;
   onTogglePlay: () => void;
   onToggleFavorite: (bookId: string) => void;
@@ -32,6 +33,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   book,
   activeChapterId,
   isPlaying,
+  isAdmin = false,
   onPlayBook,
   onTogglePlay,
   onToggleFavorite,
@@ -170,22 +172,22 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
           </button>
         </div>
 
-        {/* Delete Book (if custom book) */}
-        {book.id.startsWith('custom-') && (
-          <button
-            onClick={() =>
-              setDeleteConfirm({
-                type: 'book',
-                title: book.title,
-              })
-            }
-            className="p-2.5 rounded-full hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 transition-colors ml-auto sm:ml-0"
-            title="Xóa cuốn sách này"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-        )}
-      </div>
+          {/* Delete Book (Super Admin xuanduy.cn@gmail.com can delete any book) */}
+          {isAdmin && (
+            <button
+              onClick={() =>
+                setDeleteConfirm({
+                  type: 'book',
+                  title: book.title,
+                })
+              }
+              className="p-2.5 rounded-full hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 transition-colors ml-auto sm:ml-0"
+              title="Quyền Admin: Xóa cuốn sách này (kể cả sách mặc định)"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          )}
+        </div>
 
       {/* 3. Chapters Table List */}
       <div className="px-3 md:px-8 py-3">
@@ -245,7 +247,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                     <FileText className="w-4 h-4 text-emerald-400" />
                   </button>
 
-                  {book.id.startsWith('custom-') && book.chapters.length > 1 && (
+                  {/* Delete Chapter (Only Super Admin xuanduy.cn@gmail.com) */}
+                  {isAdmin && book.chapters.length > 1 && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -256,7 +259,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                         });
                       }}
                       className="p-2 rounded-full hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400"
-                      title="Xóa chương này"
+                      title="Quyền Admin: Xóa chương này"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

@@ -1,0 +1,32 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dino.app",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:DE:3C:94:0A:14:D0:68:55:04:1E:73:96:AC:76:A4:7B:6A:E7:E2:B0:92:B5:14:CE:BA:7D:6F:E1:90"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.pwabuilder.dino",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:DE:3C:94:0A:14:D0:68:55:04:1E:73:96:AC:76:A4:7B:6A:E7:E2:B0:92:B5:14:CE:BA:7D:6F:E1:90"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dino.dino",
+      "sha256_cert_fingerprints": [
+        "14:6D:E9:DE:3C:94:0A:14:D0:68:55:04:1E:73:96:AC:76:A4:7B:6A:E7:E2:B0:92:B5:14:CE:BA:7D:6F:E1:90"
+      ]
+    }
+  }
+]

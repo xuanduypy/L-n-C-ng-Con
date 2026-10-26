@@ -23,6 +23,7 @@ interface MusicLibraryViewProps {
   tracks: MusicTrack[];
   currentTrack: MusicTrack | null;
   isPlaying: boolean;
+  isAdmin?: boolean;
   isShuffle?: boolean;
   onToggleShuffle?: () => void;
   onPlayRandomTrack?: () => void;
@@ -38,6 +39,7 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
   tracks,
   currentTrack,
   isPlaying,
+  isAdmin = false,
   isShuffle = false,
   onToggleShuffle,
   onPlayRandomTrack,
@@ -529,14 +531,15 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
                       </span>
                     </button>
 
-                    {track.isCustom && (
+                    {/* Delete Track (Only Super Admin xuanduy.cn@gmail.com can delete any track) */}
+                    {isAdmin && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setTrackToDelete(track);
                         }}
                         className="p-1.5 text-neutral-500 hover:text-rose-400 active:scale-90"
-                        title="Xóa bài hát"
+                        title="Quyền Admin: Xóa bài hát này (kể cả nhạc mặc định)"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

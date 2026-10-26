@@ -11,7 +11,7 @@ export default defineConfig(() => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['apple-touch-icon.png', 'icon.svg'],
+        includeAssets: ['apple-touch-icon.png', 'icon.svg', '.well-known/assetlinks.json'],
         manifest: {
           id: '/',
           name: 'DiNo - Đọc Sách & Nghe Nhạc',
@@ -20,6 +20,7 @@ export default defineConfig(() => {
           theme_color: '#FEF08A',
           background_color: '#FEFCE8',
           display: 'standalone',
+          display_override: ['standalone', 'window-controls-overlay', 'fullscreen', 'minimal-ui'],
           orientation: 'portrait-primary',
           start_url: '/',
           scope: '/',
@@ -71,7 +72,7 @@ export default defineConfig(() => {
           server.middlewares.use(async (req, res, next) => {
             const url = req.url || '';
             const pathname = url.split('?')[0];
-            if (pathname.startsWith('/api/')) {
+            if (pathname.startsWith('/api/') || pathname.startsWith('/.well-known/')) {
               try {
                 const { handleApiRoute } = await import('./src/server/apiHandler.ts');
                 const handled = await handleApiRoute(req, res, pathname);

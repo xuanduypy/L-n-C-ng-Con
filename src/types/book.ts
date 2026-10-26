@@ -95,11 +95,15 @@ export interface MusicTrack {
   likesCount?: number;
 }
 
+export const ADMIN_SUPER_EMAIL = 'xuanduy.cn@gmail.com';
+
 export interface UserAccount {
   id: string;
   email: string;
   name: string;
   avatar?: string;
+  role?: 'admin' | 'user';
+  isAdmin?: boolean;
   lastSyncedAt?: number;
   isLoggedIn: boolean;
 }

@@ -145,8 +145,8 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
                 className="flex items-center gap-1.5 p-1 rounded-full bg-[#222222] border border-[#3e3e3e]/60 active:scale-90 transition-transform relative"
                 title="Tài khoản & Cài đặt ứng dụng"
               >
-                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black font-extrabold text-[11px] flex items-center justify-center">
-                  {user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />}
+                <div className={`w-7 h-7 rounded-full ${user?.isAdmin ? 'bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-black' : 'bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black'} font-extrabold text-[11px] flex items-center justify-center`}>
+                  {user?.isAdmin ? '👑' : (user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />)}
                 </div>
                 {/* Sync status indicator badge */}
                 <span
@@ -221,13 +221,16 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           {/* User Icon with Settings and Account popup trigger */}
           <button
             onClick={onOpenUserAccount}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#242424] hover:bg-[#2e2e2e] text-white text-xs font-semibold border border-[#3e3e3e]/60 transition-all hover:scale-105 active:scale-95 shadow"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${user?.isAdmin ? 'bg-[#282417] border-amber-500/40 text-amber-200' : 'bg-[#242424] border-[#3e3e3e]/60 text-white'} hover:bg-[#2e2e2e] text-xs font-semibold border transition-all hover:scale-105 active:scale-95 shadow`}
             title="Nhấn để mở Cài đặt, Hiệu chỉnh ứng dụng & Đồng bộ đám mây"
           >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black font-extrabold text-[11px] flex items-center justify-center shrink-0">
-              {user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />}
+            <div className={`w-6 h-6 rounded-full ${user?.isAdmin ? 'bg-gradient-to-tr from-amber-400 to-yellow-300 text-black' : 'bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black'} font-extrabold text-[11px] flex items-center justify-center shrink-0`}>
+              {user?.isAdmin ? '👑' : (user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />)}
             </div>
-            <span className="font-bold max-w-[120px] truncate">{user?.name || 'Tài khoản'}</span>
+            <span className="font-bold max-w-[130px] truncate flex items-center gap-1">
+              <span>{user?.name || 'Tài khoản'}</span>
+              {user?.isAdmin && <span className="text-[10px] bg-amber-400 text-black px-1 rounded font-black">ADMIN</span>}
+            </span>
             <div className="flex items-center gap-1 pl-1 border-l border-[#3a3a3a] text-neutral-400">
               <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'text-blue-400 animate-spin' : syncStatus === 'synced' ? 'text-[#1ed760]' : ''}`} />
             </div>

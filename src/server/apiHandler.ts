@@ -13,6 +13,7 @@ interface UserCloudData {
   lastSyncedAt: number;
 }
 
+const ADMIN_EMAIL = 'xuanduy.cn@gmail.com';
 const cloudSyncStore = new Map<string, UserCloudData>();
 const CACHE_FILE = path.resolve(process.cwd(), 'cloud_sync_cache.json');
 
@@ -449,7 +450,8 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
         return sendJson(res, 400, { error: 'Vui lòng nhập địa chỉ email hợp lệ' });
       }
 
-      const displayName = name ? String(name).trim() : cleanEmail.split('@')[0];
+      const isSuperAdmin = cleanEmail === ADMIN_EMAIL;
+      const displayName = name ? String(name).trim() : (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]);
       let userData = cloudSyncStore.get(cleanEmail);
 
       if (!userData) {
@@ -473,6 +475,8 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
           email: cleanEmail,
           name: userData.name || displayName,
+          role: isSuperAdmin ? 'admin' : 'user',
+          isAdmin: isSuperAdmin,
           isLoggedIn: true,
           lastSyncedAt: userData.lastSyncedAt,
         },
@@ -528,6 +532,8 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           books = [],
           customTracks = [],
           userProfiles = [],
+          deletedBookIds = [],
+          deletedTrackIds = [],
         } = await parseBody(req);
 
         const cleanEmail = String(email).trim().toLowerCase();
@@ -535,11 +541,13 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           return sendJson(res, 400, { error: 'Cần có email để lưu trữ đồng bộ' });
         }
 
+        const isSuperAdmin = cleanEmail === ADMIN_EMAIL;
+
         let existing = cloudSyncStore.get(cleanEmail);
         if (!existing) {
           existing = {
             email: cleanEmail,
-            name: cleanEmail.split('@')[0],
+            name: isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0],
             books: [],
             customTracks: [],
             userProfiles: [],
@@ -547,11 +555,10 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           };
         }
 
-        // Merge books: Keep all custom books, and update favorites / read counts
+        // Merge books
         const bookMap = new Map<string, any>();
         (existing.books || []).forEach((b: any) => bookMap.set(b.id, b));
         (books || []).forEach((b: any) => {
-          // If already exists, take newer or merged state
           if (bookMap.has(b.id)) {
             const prev = bookMap.get(b.id);
             bookMap.set(b.id, {
@@ -566,7 +573,7 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           }
         });
 
-        // Merge custom tracks:
+        // Merge custom tracks
         const trackMap = new Map<string, any>();
         (existing.customTracks || []).forEach((t: any) => trackMap.set(t.id, t));
         (customTracks || []).forEach((t: any) => {
@@ -584,14 +591,37 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
           }
         });
 
-        // Merge user voice profiles:
+        // ONLY Super Admin xuanduy.cn@gmail.com has permission to delete books and tracks!
+        if (isSuperAdmin) {
+          if (Array.isArray(deletedBookIds)) {
+            deletedBookIds.forEach((id: string) => {
+              bookMap.delete(id);
+              // Also purge across all users' cache if admin deleted
+              cloudSyncStore.forEach((userRecord) => {
+                userRecord.books = (userRecord.books || []).filter((b: any) => b.id !== id);
+              });
+            });
+          }
+
+          if (Array.isArray(deletedTrackIds)) {
+            deletedTrackIds.forEach((id: string) => {
+              trackMap.delete(id);
+              // Also purge across all users' cache if admin deleted
+              cloudSyncStore.forEach((userRecord) => {
+                userRecord.customTracks = (userRecord.customTracks || []).filter((t: any) => t.id !== id);
+              });
+            });
+          }
+        }
+
+        // Merge user voice profiles
         const profileMap = new Map<string, any>();
         (existing.userProfiles || []).forEach((p: any) => profileMap.set(p.id, p));
         (userProfiles || []).forEach((p: any) => profileMap.set(p.id, p));
 
         const updatedData: UserCloudData = {
           email: cleanEmail,
-          name: existing.name || cleanEmail.split('@')[0],
+          name: existing.name || (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]),
           books: Array.from(bookMap.values()),
           customTracks: Array.from(trackMap.values()),
           userProfiles: Array.from(profileMap.values()),
@@ -604,6 +634,8 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
         return sendJson(res, 200, {
           success: true,
           email: cleanEmail,
+          role: isSuperAdmin ? 'admin' : 'user',
+          isAdmin: isSuperAdmin,
           books: updatedData.books,
           customTracks: updatedData.customTracks,
           userProfiles: updatedData.userProfiles,
@@ -612,6 +644,138 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
       } catch (err: any) {
         console.error('Error in /api/sync/data POST:', err);
         return sendJson(res, 500, { error: err.message || 'Lỗi đồng bộ dữ liệu' });
+      }
+    }
+  }
+
+  // 7. Digital Asset Links for Android APK / TWA to Hide the URL Bar
+  if (pathname === '/.well-known/assetlinks.json') {
+    try {
+      const assetLinksPath = path.resolve(process.cwd(), 'public', '.well-known', 'assetlinks.json');
+      if (fs.existsSync(assetLinksPath)) {
+        const content = fs.readFileSync(assetLinksPath, 'utf-8');
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(content);
+        return true;
+      }
+    } catch (e) {
+      console.warn('Error reading assetlinks.json:', e);
+    }
+
+    const fallbackStatement = [
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'com.dino.app',
+          sha256_cert_fingerprints: [
+            '14:6D:E9:DE:3C:94:0A:14:D0:68:55:04:1E:73:96:AC:76:A4:7B:6A:E7:E2:B0:92:B5:14:CE:BA:7D:6F:E1:90',
+          ],
+        },
+      },
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'app.pwabuilder.dino',
+          sha256_cert_fingerprints: [
+            '14:6D:E9:DE:3C:94:0A:14:D0:68:55:04:1E:73:96:AC:76:A4:7B:6A:E7:E2:B0:92:B5:14:CE:BA:7D:6F:E1:90',
+          ],
+        },
+      },
+    ];
+    return sendJson(res, 200, fallbackStatement);
+  }
+
+  // 8. API endpoint to manage & test Digital Asset Links configuration
+  if (pathname === '/api/assetlinks') {
+    const assetLinksPath = path.resolve(process.cwd(), 'public', '.well-known', 'assetlinks.json');
+
+    if (req.method === 'GET') {
+      try {
+        if (fs.existsSync(assetLinksPath)) {
+          const raw = fs.readFileSync(assetLinksPath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          return sendJson(res, 200, {
+            status: 'active',
+            assetLinksPath: '/.well-known/assetlinks.json',
+            items: parsed,
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to parse assetlinks.json:', err);
+      }
+      return sendJson(res, 200, {
+        status: 'default',
+        assetLinksPath: '/.well-known/assetlinks.json',
+        items: [],
+      });
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { packageName, sha256Fingerprint } = await parseBody(req);
+        const pkg = String(packageName || '').trim() || 'com.dino.app';
+        const rawSha = String(sha256Fingerprint || '').trim();
+
+        if (!rawSha) {
+          return sendJson(res, 400, { error: 'Vui lòng cung cấp mã vân tay SHA-256 từ PWABuilder' });
+        }
+
+        // Standardize SHA256 format (colons or continuous hex)
+        const cleanSha = rawSha.toUpperCase();
+
+        let currentList: any[] = [];
+        try {
+          if (fs.existsSync(assetLinksPath)) {
+            const raw = fs.readFileSync(assetLinksPath, 'utf-8');
+            currentList = JSON.parse(raw);
+          }
+        } catch {}
+
+        // Check if package already exists
+        const existingIdx = currentList.findIndex(
+          (entry) => entry?.target?.package_name?.toLowerCase() === pkg.toLowerCase()
+        );
+
+        if (existingIdx >= 0) {
+          const existingEntry = currentList[existingIdx];
+          const fps: string[] = existingEntry.target.sha256_cert_fingerprints || [];
+          if (!fps.includes(cleanSha)) {
+            fps.push(cleanSha);
+          }
+          existingEntry.target.sha256_cert_fingerprints = fps;
+          currentList[existingIdx] = existingEntry;
+        } else {
+          currentList.push({
+            relation: ['delegate_permission/common.handle_all_urls'],
+            target: {
+              namespace: 'android_app',
+              package_name: pkg,
+              sha256_cert_fingerprints: [cleanSha],
+            },
+          });
+        }
+
+        // Ensure directory exists
+        const dir = path.dirname(assetLinksPath);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+
+        fs.writeFileSync(assetLinksPath, JSON.stringify(currentList, null, 2), 'utf-8');
+
+        return sendJson(res, 200, {
+          success: true,
+          message: 'Đã lưu cấu hình Digital Asset Links thành công! Khởi động lại ứng dụng APK trên điện thoại để kiểm tra.',
+          items: currentList,
+        });
+      } catch (err: any) {
+        console.error('Error updating assetlinks:', err);
+        return sendJson(res, 500, { error: err.message || 'Lỗi khi lưu Digital Asset Links' });
       }
     }
   }
