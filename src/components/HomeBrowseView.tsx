@@ -16,8 +16,12 @@ interface HomeBrowseViewProps {
   currentTrack?: MusicTrack | null;
   isPlayingMusic?: boolean;
   onPlayTrack?: (track: MusicTrack) => void;
+  // Navigation
   onNavigateMusic?: () => void;
   onNavigateBookLibrary?: () => void;
+  onNavigateAudiobook?: () => void;
+  onNavigateAIMusic?: () => void;
+  onNavigateVoiceTraining?: () => void;
 }
 
 export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
@@ -33,6 +37,9 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   onPlayTrack,
   onNavigateMusic,
   onNavigateBookLibrary,
+  onNavigateAudiobook,
+  onNavigateAIMusic,
+  onNavigateVoiceTraining,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
 
@@ -79,29 +86,104 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
     });
   }, [tracks, searchQuery]);
 
-  const categories = ['Tất cả', 'Sách nói', 'Kho Nhạc', 'Văn học', 'Kỹ năng', 'Cổ tích'];
+  const categories = ['Tất cả', 'Kho sách', 'Kho nhạc'];
 
   const customBooks = books.filter((b) => b.id.startsWith('custom-'));
   const recentQuickBooks = books.slice(0, 6);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#1f382a]/70 via-[#121212] to-[#121212] p-3 md:p-8 pb-44 md:pb-14 space-y-6 md:space-y-8 text-white select-none">
-      {/* Category Pills Header */}
+    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#2a2412]/60 via-[#121212] to-[#121212] p-3 md:p-8 pb-44 md:pb-14 space-y-6 md:space-y-8 text-white select-none">
+      {/* Category Pills Header: Strictly Tất cả, Kho sách, Kho nhạc */}
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
         {categories.map((cat) => (
           <button
             key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide transition-all ${
+            onClick={() => {
+              setSelectedCategory(cat);
+              if (cat === 'Kho sách' && onNavigateBookLibrary) onNavigateBookLibrary();
+              if (cat === 'Kho nhạc' && onNavigateMusic) onNavigateMusic();
+            }}
+            className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${
               selectedCategory === cat
-                ? 'bg-white text-black shadow'
-                : 'bg-[#232323] text-neutral-300 hover:bg-[#2c2c2c] hover:text-white'
+                ? 'bg-amber-400 text-black shadow-md'
+                : 'bg-[#222222] text-neutral-300 hover:bg-[#2c2c2c] hover:text-white'
             }`}
           >
             {cat}
           </button>
         ))}
       </div>
+
+      {/* AI Studio Feature Cards */}
+      {!searchQuery && selectedCategory === 'Tất cả' && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div
+            onClick={onNavigateAudiobook}
+            className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 via-[#1c1c1c] to-[#161616] border border-amber-500/40 hover:border-amber-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
+                🎙️
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
+                  GIỌNG ĐỌC AI & NGƯỜI DÙNG
+                </span>
+                <h3 className="font-extrabold text-sm text-white group-hover:text-amber-300">
+                  Tạo Sách Audio
+                </h3>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-400">
+              Đưa văn bản vào, tạo sách nói truyền cảm & cho phép tải về âm thanh (.WAV).
+            </p>
+          </div>
+
+          <div
+            onClick={onNavigateAIMusic}
+            className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 via-[#1c1c1c] to-[#161616] border border-blue-500/40 hover:border-blue-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-blue-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
+                🎵
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black tracking-wider text-blue-400">
+                  SÁNG TÁC TỰ ĐỘNG
+                </span>
+                <h3 className="font-extrabold text-sm text-white group-hover:text-blue-300">
+                  Tạo Nhạc AI
+                </h3>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-400">
+              Soạn giai điệu, hòa âm đa nhạc cụ, viết lời bài hát & tải về bài hát (.WAV).
+            </p>
+          </div>
+
+          <div
+            onClick={onNavigateVoiceTraining}
+            className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/20 via-[#1c1c1c] to-[#161616] border border-purple-500/40 hover:border-purple-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
+          >
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-purple-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
+                🎧
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-black tracking-wider text-purple-400">
+                  PHÒNG THU CÁ NHÂN
+                </span>
+                <h3 className="font-extrabold text-sm text-white group-hover:text-purple-300">
+                  Huấn Luyện Giọng
+                </h3>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-400">
+              Thu âm mẫu giọng của bạn để đọc sách nói với ngữ điệu riêng.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* Greeting & Top Quick 6 Tiles (Spotify Style) */}
       {!searchQuery && selectedCategory === 'Tất cả' && (

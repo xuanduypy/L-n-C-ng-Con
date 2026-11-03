@@ -7,6 +7,10 @@ import path from 'path';
 interface UserCloudData {
   email: string;
   name: string;
+  username?: string;
+  password?: string;
+  zodiacId?: string;
+  zodiacEmoji?: string;
   books: any[];
   customTracks: any[];
   userProfiles: any[];
@@ -383,13 +387,13 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
     }
   }
 
-  // 4. Gemini TTS Voice Generation (Giọng đọc tùy chỉnh bằng Gemini TTS)
+  // 4. Gemini TTS Voice Generation (Giọng đọc tiếng Việt tự nhiên bằng Gemini TTS)
   if (pathname === '/api/gemini/tts' && req.method === 'POST') {
     try {
       const {
         text,
         voiceName = 'Kore', // 'Kore' | 'Puck' | 'Fenrir' | 'Zephyr' | 'Charon'
-        style = 'Warm, gentle and affectionate bedtime storyteller for small kids',
+        style = 'Natural, warm, human-like Vietnamese audiobook narrator with expressive inflection and clear pacing',
       } = await parseBody(req);
 
       if (!text) {
@@ -401,6 +405,9 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
         return sendJson(res, 200, { audioBase64: null, message: 'Gemini API Key is not configured for TTS; will use Web Speech API fallback.' });
       }
 
+      // Max 600 chars per TTS request for crisp quality
+      const chunk = String(text).slice(0, 600);
+
       const response = await ai.models.generateContent({
         model: 'gemini-3.8-flash-lite-tts',
         contents: [
@@ -408,7 +415,7 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
             role: 'user',
             parts: [
               {
-                text: text.slice(0, 400), // Kid-friendly sentence length
+                text: chunk,
                 speechMetadata: {
                   style,
                 },
@@ -441,32 +448,235 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
     }
   }
 
-  // 5. User Email Authentication & Account Login
+  // 4B. AI Audiobook Creator & Chapter Splitter (Phân tích & Tách chương tự động từ văn bản)
+  if (pathname === '/api/gemini/create-audiobook' && req.method === 'POST') {
+    try {
+      const {
+        title = '',
+        author = '',
+        category = 'Văn học',
+        rawText = '',
+      } = await parseBody(req);
+
+      if (!rawText || rawText.trim().length < 10) {
+        return sendJson(res, 400, { error: 'Vui lòng cung cấp nội dung văn bản để tạo sách' });
+      }
+
+      const ai = getGenAI();
+      if (!ai) {
+        // Fallback local splitter if API not available
+        const paragraphs = rawText.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0);
+        const chapters = paragraphs.length > 3
+          ? [
+              {
+                title: 'Chương 1: Mở Đầu',
+                content: paragraphs.slice(0, Math.ceil(paragraphs.length / 2)).join('\n\n'),
+                wordCount: 150,
+                estimatedDurationSec: 45,
+              },
+              {
+                title: 'Chương 2: Diễn Biến & Kết Thúc',
+                content: paragraphs.slice(Math.ceil(paragraphs.length / 2)).join('\n\n'),
+                wordCount: 180,
+                estimatedDurationSec: 55,
+              },
+            ]
+          : [
+              {
+                title: 'Chương 1: Toàn Văn Tác Phẩm',
+                content: rawText,
+                wordCount: rawText.split(/\s+/).length,
+                estimatedDurationSec: Math.ceil(rawText.split(/\s+/).length / 2.5),
+              },
+            ];
+
+        return sendJson(res, 200, {
+          title: title || 'Tác Phẩm Sách Nói',
+          author: author || 'Tác giả',
+          category,
+          description: rawText.slice(0, 150) + '...',
+          chapters,
+        });
+      }
+
+      const prompt = `Bạn là một biên tập viên sách nói AI chuyên nghiệp.
+Hãy phân tích nội dung văn bản sau để tạo thành một cuốn sách audio hoàn chỉnh:
+"""${rawText.slice(0, 10000)}"""
+
+YÊU CẦU:
+1. Đặt tiêu đề sách cuốn hút (nếu người dùng chưa nhập: "${title}").
+2. Xác định tên tác giả (nếu người dùng chưa nhập: "${author}").
+3. Viết lời giới thiệu tóm tắt (description) ngắn gọn, truyền cảm hứng (2-3 câu).
+4. Phân chia nội dung văn bản thành các chương (chapters) hợp lý và logic (từ 1 đến 5 chương tùy độ dài).
+5. Mỗi chương có tiêu đề rõ ràng (ví dụ: "Chương 1: Khởi đầu hành trình"), nội dung văn bản đầy đủ mượt mà, và gợi ý cảm xúc đọc (ấm áp, hào hùng, nhẹ nhàng, dí dỏm).`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              author: { type: Type.STRING },
+              category: { type: Type.STRING },
+              description: { type: Type.STRING },
+              chapters: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    content: { type: Type.STRING },
+                    suggestedEmotion: { type: Type.STRING },
+                  },
+                  required: ['title', 'content'],
+                },
+              },
+            },
+            required: ['title', 'chapters'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || '{}');
+      return sendJson(res, 200, parsed);
+    } catch (err: any) {
+      console.error('Error in /api/gemini/create-audiobook:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi khi tạo sách audio' });
+    }
+  }
+
+  // 4C. AI Music Lyrics & Arrangement Generator (Sáng tác lời & cấu trúc nhạc AI)
+  if (pathname === '/api/gemini/create-music' && req.method === 'POST') {
+    try {
+      const {
+        prompt = '',
+        genre = 'ru_ngu',
+        mood = 'êm dịu',
+      } = await parseBody(req);
+
+      const ai = getGenAI();
+      if (!ai) {
+        return sendJson(res, 200, {
+          title: 'Giai Điệu Bình Yên',
+          lyrics: `Gió nhẹ ru hàng cây xôn xao\nĐưa mây về ngắm ánh trăng sao\nNgủ ngon nhé giấc mơ ngọt ngào\nBình yên theo tiếng ru dạt dào.`,
+          bpm: 72,
+          genre,
+          mood,
+        });
+      }
+
+      const aiPrompt = `Bạn là một nhạc sĩ sáng tác âm nhạc AI tài năng.
+Người dùng yêu cầu sáng tác một bài hát theo ý tưởng: "${prompt || 'Bài hát êm đềm ru ngủ và thư giãn'}"
+Thể loại: ${genre}
+Tâm trạng: ${mood}
+
+YÊU CẦU:
+1. Đặt tên bài hát giàu chất thơ, ý nghĩa.
+2. Viết lời bài hát bằng tiếng Việt có vần điệu mượt mà, sâu lắng, chia thành Đoạn 1, Điệp khúc (Chorus), Đoạn 2 (khoảng 8-16 câu thơ lục bát hoặc thơ 4/5 chữ).
+3. Đề xuất nhịp độ BPM phù hợp (từ 60 đến 125).
+4. Viết một đoạn mô tả ngắn về ý nghĩa giai điệu.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: aiPrompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              lyrics: { type: Type.STRING },
+              bpm: { type: Type.INTEGER },
+              description: { type: Type.STRING },
+              musicalTheme: { type: Type.STRING },
+            },
+            required: ['title', 'lyrics', 'bpm'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || '{}');
+      return sendJson(res, 200, parsed);
+    } catch (err: any) {
+      console.error('Error in /api/gemini/create-music:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi khi sáng tác nhạc' });
+    }
+  }
+
+  // 5. User Email & Username / Password Authentication
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     try {
-      const { email = '', name = '' } = await parseBody(req);
-      const cleanEmail = String(email).trim().toLowerCase();
-      if (!cleanEmail || !cleanEmail.includes('@')) {
-        return sendJson(res, 400, { error: 'Vui lòng nhập địa chỉ email hợp lệ' });
+      const { email = '', username = '', password = '', name = '', loginType = 'auto' } = await parseBody(req);
+      
+      let matchedUserData: UserCloudData | null = null;
+      let cleanEmail = '';
+
+      // If logging in by username & password
+      if (loginType === 'username' || (!email.includes('@') && username)) {
+        const cleanUser = String(username || email).trim().toLowerCase();
+        for (const [em, data] of cloudSyncStore.entries()) {
+          if (data.username && data.username.toLowerCase() === cleanUser) {
+            if (data.password && password && data.password !== String(password)) {
+              return sendJson(res, 401, { error: 'Mật khẩu không chính xác' });
+            }
+            matchedUserData = data;
+            cleanEmail = em;
+            break;
+          }
+        }
+
+        if (!matchedUserData) {
+          // If admin login by username
+          if (cleanUser === 'admin' || cleanUser === 'xuanduy') {
+            cleanEmail = ADMIN_EMAIL;
+            matchedUserData = cloudSyncStore.get(ADMIN_EMAIL) || {
+              email: ADMIN_EMAIL,
+              name: 'Xuân Duy (Admin)',
+              username: 'admin',
+              password: String(password || ''),
+              zodiacId: 'thin',
+              zodiacEmoji: '🐲',
+              books: [],
+              customTracks: [],
+              userProfiles: [],
+              lastSyncedAt: Date.now(),
+            };
+            cloudSyncStore.set(ADMIN_EMAIL, matchedUserData);
+            persistCacheToDisk();
+          } else {
+            return sendJson(res, 404, { error: 'Không tìm thấy tài khoản với tên đăng nhập này' });
+          }
+        }
+      } else {
+        // Email / Google login
+        cleanEmail = String(email).trim().toLowerCase();
+        if (!cleanEmail || !cleanEmail.includes('@')) {
+          return sendJson(res, 400, { error: 'Vui lòng nhập địa chỉ email hợp lệ' });
+        }
+        matchedUserData = cloudSyncStore.get(cleanEmail) || null;
       }
 
       const isSuperAdmin = cleanEmail === ADMIN_EMAIL;
-      const displayName = name ? String(name).trim() : (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]);
-      let userData = cloudSyncStore.get(cleanEmail);
+      const displayName = name
+        ? String(name).trim()
+        : (matchedUserData?.name || (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]));
 
-      if (!userData) {
-        userData = {
+      if (!matchedUserData) {
+        matchedUserData = {
           email: cleanEmail,
           name: displayName,
+          username: cleanEmail.split('@')[0],
+          zodiacId: isSuperAdmin ? 'thin' : 'mao',
+          zodiacEmoji: isSuperAdmin ? '🐲' : '🐱',
           books: [],
           customTracks: [],
           userProfiles: [],
           lastSyncedAt: Date.now(),
         };
-        cloudSyncStore.set(cleanEmail, userData);
-        persistCacheToDisk();
-      } else if (name && userData.name !== displayName) {
-        userData.name = displayName;
+        cloudSyncStore.set(cleanEmail, matchedUserData);
         persistCacheToDisk();
       }
 
@@ -474,22 +684,82 @@ Hãy dùng thông tin từ câu chuyện đã cung cấp để trả lời bé m
         user: {
           id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
           email: cleanEmail,
-          name: userData.name || displayName,
+          name: matchedUserData.name || displayName,
+          username: matchedUserData.username || cleanEmail.split('@')[0],
+          zodiacId: matchedUserData.zodiacId || (isSuperAdmin ? 'thin' : 'mao'),
+          zodiacEmoji: matchedUserData.zodiacEmoji || (isSuperAdmin ? '🐲' : '🐱'),
+          hasPassword: Boolean(matchedUserData.password),
           role: isSuperAdmin ? 'admin' : 'user',
           isAdmin: isSuperAdmin,
           isLoggedIn: true,
-          lastSyncedAt: userData.lastSyncedAt,
+          lastSyncedAt: matchedUserData.lastSyncedAt,
         },
         cloudData: {
-          books: userData.books || [],
-          customTracks: userData.customTracks || [],
-          userProfiles: userData.userProfiles || [],
-          lastSyncedAt: userData.lastSyncedAt,
+          books: matchedUserData.books || [],
+          customTracks: matchedUserData.customTracks || [],
+          userProfiles: matchedUserData.userProfiles || [],
+          lastSyncedAt: matchedUserData.lastSyncedAt,
         },
       });
     } catch (err: any) {
       console.error('Error in /api/auth/login:', err);
       return sendJson(res, 500, { error: err.message || 'Lỗi đăng nhập' });
+    }
+  }
+
+  // 5B. Update User Profile (Tên hiển thị, Tên đăng nhập, Mật khẩu, Ảnh đại diện Con Giáp)
+  if (pathname === '/api/auth/profile' && req.method === 'POST') {
+    try {
+      const { email = '', name, username, password, zodiacId, zodiacEmoji } = await parseBody(req);
+      const cleanEmail = String(email).trim().toLowerCase();
+      if (!cleanEmail) {
+        return sendJson(res, 400, { error: 'Thiếu email tài khoản' });
+      }
+
+      let userData = cloudSyncStore.get(cleanEmail);
+      if (!userData) {
+        userData = {
+          email: cleanEmail,
+          name: name || cleanEmail.split('@')[0],
+          books: [],
+          customTracks: [],
+          userProfiles: [],
+          lastSyncedAt: Date.now(),
+        };
+      }
+
+      if (name !== undefined) userData.name = String(name).trim();
+      if (username !== undefined) userData.username = String(username).trim();
+      if (password !== undefined && String(password).trim().length > 0) {
+        userData.password = String(password).trim();
+      }
+      if (zodiacId !== undefined) userData.zodiacId = String(zodiacId);
+      if (zodiacEmoji !== undefined) userData.zodiacEmoji = String(zodiacEmoji);
+      userData.lastSyncedAt = Date.now();
+
+      cloudSyncStore.set(cleanEmail, userData);
+      persistCacheToDisk();
+
+      const isSuperAdmin = cleanEmail === ADMIN_EMAIL;
+      return sendJson(res, 200, {
+        success: true,
+        user: {
+          id: `usr-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          email: cleanEmail,
+          name: userData.name,
+          username: userData.username,
+          zodiacId: userData.zodiacId,
+          zodiacEmoji: userData.zodiacEmoji,
+          hasPassword: Boolean(userData.password),
+          role: isSuperAdmin ? 'admin' : 'user',
+          isAdmin: isSuperAdmin,
+          isLoggedIn: true,
+          lastSyncedAt: userData.lastSyncedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error('Error in /api/auth/profile:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi cập nhật thông tin' });
     }
   }
 

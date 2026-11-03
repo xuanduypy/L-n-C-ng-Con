@@ -6,13 +6,13 @@ import {
   Plus,
   User,
   Cloud,
-  Check,
-  RefreshCw,
+  Sparkles,
 } from 'lucide-react';
-import { VoiceSettings, UserAccount } from '../types/book';
+import { VoiceSettings, UserAccount, ViewMode, ZODIAC_ANIMALS } from '../types/book';
 
 interface SpotifyTopBarProps {
-  currentView: string;
+  currentView: ViewMode;
+  onViewChange?: (view: ViewMode) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   onNavigateBack?: () => void;
@@ -29,28 +29,28 @@ interface SpotifyTopBarProps {
 
 export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
   currentView,
+  onViewChange,
   searchQuery,
   onSearchChange,
   onNavigateBack,
   onNavigateForward,
-  onOpenVoiceSettings,
+  onOpenVoiceSettings: _onOpenVoiceSettings,
   onOpenAddModal,
   onOpenUserAccount,
   user,
   syncStatus,
-  voiceSettings: _voiceSettings,
-  headerBgOpacity = 0.8,
-  bookTitle: _bookTitle,
+  headerBgOpacity = 0.85,
 }) => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  const isSubView = currentView === 'book-detail' || currentView === 'music-library' || currentView === 'book-library';
+  const isSubView = currentView === 'book-detail';
+  const currentZodiac = ZODIAC_ANIMALS.find((z) => z.id === user?.zodiacId) || ZODIAC_ANIMALS[0];
 
   return (
     <header
-      className="sticky top-0 z-30 h-14 md:h-16 px-3 md:px-8 flex items-center justify-between gap-2 md:gap-4 transition-colors duration-200 border-b border-[#282828]/40 select-none"
+      className="sticky top-0 z-30 h-14 md:h-16 px-3 md:px-6 flex items-center justify-between gap-2 md:gap-4 transition-colors duration-200 border-b border-[#242424] select-none"
       style={{
-        backgroundColor: `rgba(18, 18, 18, ${Math.min(0.96, Math.max(0.7, headerBgOpacity))})`,
+        backgroundColor: `rgba(18, 18, 18, ${Math.min(0.97, Math.max(0.75, headerBgOpacity))})`,
         backdropFilter: 'blur(16px)',
       }}
     >
@@ -65,7 +65,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
                 autoFocus
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
-                placeholder="Tìm sách, tác giả, bài hát..."
+                placeholder="Tìm sách nói, nhạc AI..."
                 className="w-full bg-[#242424] text-xs text-white placeholder-neutral-400 pl-9 pr-8 py-2 rounded-full border border-neutral-600 outline-none"
               />
               {searchQuery && (
@@ -89,41 +89,51 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           </div>
         ) : (
           <>
-            {/* Left: Back button or App Logo DiNo */}
+            {/* Left: LOGO REPLACED BY USER AVATAR & SETTINGS TRIGGER */}
             <div className="flex items-center gap-2 min-w-0">
               {isSubView ? (
                 <button
                   onClick={onNavigateBack}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#222222] text-white text-xs font-bold active:scale-90 transition-transform"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#222222] text-white text-xs font-bold active:scale-95 transition-transform"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>Quay lại</span>
                 </button>
               ) : (
-                <div className="flex items-center gap-2.5">
-                  <img
-                    src="/icon.svg"
-                    alt="DiNo"
-                    className="w-8 h-8 rounded-xl shadow-md border border-amber-300/40 object-cover shrink-0"
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-extrabold text-white text-sm tracking-tight leading-none flex items-center gap-1">
-                      DiNo
-                      <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
-                        AUDIO
-                      </span>
-                    </span>
-                    <span className="text-[10px] text-neutral-400 font-medium">Sách & Kho nhạc</span>
+                <button
+                  onClick={onOpenUserAccount}
+                  className="flex items-center gap-2.5 p-1 pr-2.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 hover:border-amber-400/50 active:scale-95 transition-all group"
+                  title="Tài khoản & Cài đặt DiNo"
+                >
+                  <div
+                    className={`w-8 h-8 rounded-xl bg-gradient-to-tr ${
+                      user?.isAdmin
+                        ? 'from-amber-400 to-yellow-500 text-black'
+                        : currentZodiac.color
+                    } flex items-center justify-center text-lg shadow-md shrink-0 border border-white/20`}
+                  >
+                    {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
                   </div>
-                </div>
+                  <div className="flex flex-col text-left">
+                    <span className="font-extrabold text-white text-xs tracking-tight leading-none flex items-center gap-1">
+                      {user?.name || (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
+                      {user?.isAdmin && (
+                        <span className="text-[9px] bg-amber-400 text-black px-1 rounded font-black">
+                          ADMIN
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[10px] text-neutral-400 font-medium">Cài đặt & Hồ sơ</span>
+                  </div>
+                </button>
               )}
             </div>
 
-            {/* Right Action Icons for Mobile: Search, Add, and User Profile with Settings */}
+            {/* Right: Search, Create, Cloud Sync */}
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setMobileSearchOpen(true)}
-                className="p-2 rounded-full bg-[#222222] text-neutral-300 active:scale-90"
+                className="p-2 rounded-full bg-[#222222] text-neutral-300 active:scale-95"
                 title="Tìm kiếm"
               >
                 <Search className="w-4 h-4" />
@@ -132,33 +142,12 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
               {onOpenAddModal && (
                 <button
                   onClick={onOpenAddModal}
-                  className="p-2 rounded-full bg-[#222222] text-white active:scale-90"
-                  title="Thêm sách hoặc bài hát"
+                  className="p-2 rounded-full bg-amber-400 text-black font-bold active:scale-95 shadow"
+                  title="Thêm nhanh"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[3]" />
                 </button>
               )}
-
-              {/* User Profile Avatar with Settings */}
-              <button
-                onClick={onOpenUserAccount}
-                className="flex items-center gap-1.5 p-1 rounded-full bg-[#222222] border border-[#3e3e3e]/60 active:scale-90 transition-transform relative"
-                title="Tài khoản & Cài đặt ứng dụng"
-              >
-                <div className={`w-7 h-7 rounded-full ${user?.isAdmin ? 'bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 text-black' : 'bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black'} font-extrabold text-[11px] flex items-center justify-center`}>
-                  {user?.isAdmin ? '👑' : (user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />)}
-                </div>
-                {/* Sync status indicator badge */}
-                <span
-                  className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-black ${
-                    syncStatus === 'syncing'
-                      ? 'bg-blue-400 animate-spin'
-                      : syncStatus === 'synced'
-                      ? 'bg-[#1ed760]'
-                      : 'bg-neutral-500'
-                  }`}
-                />
-              </button>
             </div>
           </>
         )}
@@ -166,75 +155,108 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
 
       {/* ================= DESKTOP LAYOUT (>= md) ================= */}
       <div className="hidden md:flex items-center justify-between w-full">
-        {/* Left: History buttons + Search input */}
-        <div className="flex items-center gap-3 flex-1 max-w-xl">
-          <div className="flex items-center gap-1.5 shrink-0">
+        {/* Left: USER AVATAR IN PLACE OF LOGO */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onOpenUserAccount}
+            className="flex items-center gap-2.5 p-1.5 pr-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 hover:border-amber-400/60 active:scale-95 transition-all text-left shadow-md group"
+            title="Tài khoản, 12 con giáp & cài đặt"
+          >
+            <div
+              className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${
+                user?.isAdmin
+                  ? 'from-amber-400 to-yellow-500 text-black'
+                  : currentZodiac.color
+              } flex items-center justify-center text-xl shadow border border-white/25 shrink-0 group-hover:scale-105 transition-transform`}
+            >
+              {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-white text-xs tracking-tight">
+                  {user?.name || (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
+                </span>
+                {user?.isAdmin ? (
+                  <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
+                    👑 ADMIN
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-amber-400 font-bold">
+                    {currentZodiac.emoji} {currentZodiac.name}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-neutral-400">Tài khoản & Cài đặt</span>
+            </div>
+          </button>
+
+          {/* Navigation Arrows */}
+          <div className="flex items-center gap-1">
             <button
               onClick={onNavigateBack}
-              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black text-[#b3b3b3] hover:text-white flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
               title="Quay lại"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={onNavigateForward}
-              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black text-[#b3b3b3] hover:text-white flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
               title="Đi tới"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
-          </div>
-
-          {/* Search input field */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder="Bạn muốn nghe album nhạc hay đọc sách gì trên DiNo?"
-              className="w-full bg-[#242424] hover:bg-[#2a2a2a] focus:bg-[#333333] text-sm text-white placeholder-neutral-400 pl-10 pr-4 py-2 rounded-full border border-transparent focus:border-neutral-500 outline-none transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-white"
-              >
-                ✕
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Right: Add Action & User Account Menu Button */}
-        <div className="flex items-center gap-2 md:gap-3 shrink-0">
+        {/* Center: Search input */}
+        <div className="relative flex-1 max-w-md mx-4">
+          <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Tìm kiếm sách nói, bài hát AI, tác giả..."
+            className="w-full bg-[#202020] hover:bg-[#262626] focus:bg-[#2b2b2b] text-xs text-white placeholder-neutral-400 pl-10 pr-8 py-2 rounded-full border border-neutral-800 focus:border-amber-400 outline-none transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => onSearchChange('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-400 hover:text-white"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* Right: Quick actions */}
+        <div className="flex items-center gap-2.5 shrink-0">
           {onOpenAddModal && (
             <button
               onClick={onOpenAddModal}
-              className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black text-xs font-bold hover:bg-neutral-200 transition-all active:scale-95 shadow"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-400 text-neutral-950 text-xs font-bold hover:bg-amber-300 transition-all active:scale-95 shadow"
             >
-              <Plus className="w-4 h-4 stroke-[3]" />
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
               <span>Thêm mới</span>
             </button>
           )}
 
-          {/* User Icon with Settings and Account popup trigger */}
-          <button
+          {/* Sync indicator */}
+          <div
             onClick={onOpenUserAccount}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${user?.isAdmin ? 'bg-[#282417] border-amber-500/40 text-amber-200' : 'bg-[#242424] border-[#3e3e3e]/60 text-white'} hover:bg-[#2e2e2e] text-xs font-semibold border transition-all hover:scale-105 active:scale-95 shadow`}
-            title="Nhấn để mở Cài đặt, Hiệu chỉnh ứng dụng & Đồng bộ đám mây"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 text-xs cursor-pointer hover:border-neutral-700"
+            title="Đồng bộ đám mây"
           >
-            <div className={`w-6 h-6 rounded-full ${user?.isAdmin ? 'bg-gradient-to-tr from-amber-400 to-yellow-300 text-black' : 'bg-gradient-to-tr from-amber-400 to-[#1ed760] text-black'} font-extrabold text-[11px] flex items-center justify-center shrink-0`}>
-              {user?.isAdmin ? '👑' : (user?.name ? user.name.slice(0, 1).toUpperCase() : <User className="w-3.5 h-3.5" />)}
-            </div>
-            <span className="font-bold max-w-[130px] truncate flex items-center gap-1">
-              <span>{user?.name || 'Tài khoản'}</span>
-              {user?.isAdmin && <span className="text-[10px] bg-amber-400 text-black px-1 rounded font-black">ADMIN</span>}
-            </span>
-            <div className="flex items-center gap-1 pl-1 border-l border-[#3a3a3a] text-neutral-400">
-              <Cloud className={`w-3.5 h-3.5 ${syncStatus === 'syncing' ? 'text-blue-400 animate-spin' : syncStatus === 'synced' ? 'text-[#1ed760]' : ''}`} />
-            </div>
-          </button>
+            <Cloud
+              className={`w-3.5 h-3.5 ${
+                syncStatus === 'syncing'
+                  ? 'text-blue-400 animate-spin'
+                  : syncStatus === 'synced'
+                  ? 'text-emerald-400'
+                  : 'text-neutral-500'
+              }`}
+            />
+          </div>
         </div>
       </div>
     </header>

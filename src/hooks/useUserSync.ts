@@ -52,7 +52,7 @@ export function useUserSync(
     } catch {}
   }, [user]);
 
-  // Login with Email
+  // Login with Email or Google
   const loginWithEmail = useCallback(async (email: string, name?: string): Promise<boolean> => {
     if (!email || !email.includes('@')) return false;
 
@@ -64,7 +64,7 @@ export function useUserSync(
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, name: name?.trim() }),
+        body: JSON.stringify({ email: cleanEmail, name: name?.trim(), loginType: 'email' }),
       });
 
       if (!res.ok) throw new Error('Không thể đăng nhập');
@@ -75,6 +75,10 @@ export function useUserSync(
           id: data.user.id,
           email: data.user.email,
           name: data.user.name,
+          username: data.user.username,
+          zodiacId: data.user.zodiacId,
+          zodiacEmoji: data.user.zodiacEmoji,
+          hasPassword: data.user.hasPassword,
           role: isSuperAdmin ? 'admin' : 'user',
           isAdmin: isSuperAdmin,
           isLoggedIn: true,
@@ -84,7 +88,6 @@ export function useUserSync(
         setLastSyncedAt(loggedUser.lastSyncedAt || Date.now());
         setSyncStatus('synced');
 
-        // Apply cloud books and music if found
         if (data.cloudData && onDataMerged) {
           onDataMerged({
             books: data.cloudData.books,
@@ -97,12 +100,14 @@ export function useUserSync(
         return true;
       }
     } catch (e) {
-      console.warn('Login / Cloud sync error, using local fallback:', e);
-      // Fallback local signin
+      console.warn('Login error, using local fallback:', e);
       const localUser: UserAccount = {
         id: `usr-${Date.now()}`,
         email: cleanEmail,
         name: name?.trim() || (isSuperAdmin ? 'Xuân Duy (Admin)' : cleanEmail.split('@')[0]),
+        username: cleanEmail.split('@')[0],
+        zodiacId: isSuperAdmin ? 'thin' : 'mao',
+        zodiacEmoji: isSuperAdmin ? '🐲' : '🐱',
         role: isSuperAdmin ? 'admin' : 'user',
         isAdmin: isSuperAdmin,
         isLoggedIn: true,
@@ -117,9 +122,112 @@ export function useUserSync(
     return false;
   }, [onDataMerged]);
 
-  // Logout
+  // Login with Username & Password
+  const loginWithCredentials = useCallback(
+    async (username: string, password?: string): Promise<{ success: boolean; error?: string }> => {
+      if (!username) return { success: false, error: 'Vui lòng nhập tên đăng nhập' };
+
+      setSyncStatus('syncing');
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: username.trim(),
+            password: password?.trim() || '',
+            loginType: 'username',
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          setSyncStatus('error');
+          return { success: false, error: data.error || 'Đăng nhập không thành công' };
+        }
+
+        if (data.user) {
+          const isSuperAdmin = data.user.email?.toLowerCase() === ADMIN_SUPER_EMAIL;
+          const loggedUser: UserAccount = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            username: data.user.username,
+            zodiacId: data.user.zodiacId,
+            zodiacEmoji: data.user.zodiacEmoji,
+            hasPassword: data.user.hasPassword,
+            role: isSuperAdmin ? 'admin' : 'user',
+            isAdmin: isSuperAdmin,
+            isLoggedIn: true,
+            lastSyncedAt: data.user.lastSyncedAt || Date.now(),
+          };
+          setUser(loggedUser);
+          setLastSyncedAt(loggedUser.lastSyncedAt || Date.now());
+          setSyncStatus('synced');
+
+          if (data.cloudData && onDataMerged) {
+            onDataMerged({
+              books: data.cloudData.books,
+              customTracks: data.cloudData.customTracks,
+              userProfiles: data.cloudData.userProfiles,
+            });
+          }
+          return { success: true };
+        }
+        return { success: false, error: 'Không nhận được dữ liệu người dùng' };
+      } catch (err: any) {
+        setSyncStatus('error');
+        return { success: false, error: err.message || 'Lỗi mạng khi đăng nhập' };
+      } finally {
+        setTimeout(() => setSyncStatus((prev) => (prev === 'syncing' ? 'idle' : prev)), 3000);
+      }
+    },
+    [onDataMerged]
+  );
+
+  // Update Profile (Name, Username, Password, Zodiac)
+  const updateProfile = useCallback(
+    async (profileData: {
+      name?: string;
+      username?: string;
+      password?: string;
+      zodiacId?: string;
+      zodiacEmoji?: string;
+    }): Promise<{ success: boolean; error?: string }> => {
+      if (!user?.email) return { success: false, error: 'Chưa đăng nhập' };
+
+      try {
+        const res = await fetch('/api/auth/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: user.email,
+            ...profileData,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          return { success: false, error: data.error || 'Cập nhật thất bại' };
+        }
+
+        if (data.user) {
+          setUser((prev) => (prev ? { ...prev, ...data.user } : null));
+          return { success: true };
+        }
+        return { success: false, error: 'Không nhận được dữ liệu' };
+      } catch (err: any) {
+        return { success: false, error: err.message || 'Lỗi cập nhật' };
+      }
+    },
+    [user?.email]
+  );
+
+  // Logout - Thoát hẳn và dọn sạch session
   const logout = useCallback(() => {
     setUser(null);
+    try {
+      localStorage.removeItem(STORAGE_USER_KEY);
+    } catch {}
     setSyncStatus('idle');
   }, []);
 
@@ -189,6 +297,8 @@ export function useUserSync(
     syncStatus,
     lastSyncedAt,
     loginWithEmail,
+    loginWithCredentials,
+    updateProfile,
     logout,
     syncCloudData,
   };

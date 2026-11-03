@@ -135,6 +135,13 @@ export interface UserAccount {
   isLoggedIn: boolean;
 }
 
-export type ViewMode = 'home' | 'search' | 'library' | 'book-detail' | 'music-library' | 'book-library';
+export type ViewMode =
+  | 'all'
+  | 'audiobook-studio'
+  | 'aimusic-studio'
+  | 'voice-training'
+  | 'book-library'
+  | 'music-library'
+  | 'book-detail';
 
 

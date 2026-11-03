@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Book, Chapter, PlaybackSpeed, MusicTrack, ViewMode, UserVoiceProfile, ADMIN_SUPER_EMAIL } from './types/book';
+import {
+  Book,
+  Chapter,
+  PlaybackSpeed,
+  MusicTrack,
+  ViewMode,
+  UserVoiceProfile,
+  ADMIN_SUPER_EMAIL,
+} from './types/book';
 import { INITIAL_BOOKS } from './data/initialBooks';
 import { useBookAudioPlayer } from './hooks/useBookAudioPlayer';
 import { useMusicAudioPlayer } from './hooks/useMusicAudioPlayer';
@@ -18,6 +26,9 @@ import { VoiceSettingsModal } from './components/VoiceSettingsModal';
 import { UserAccountModal } from './components/UserAccountModal';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { PWAInstallBanner } from './components/PWAInstallBanner';
+import { AudiobookCreatorStudio } from './components/AudiobookCreatorStudio';
+import { AIMusicStudio } from './components/AIMusicStudio';
+import { UserVoiceTrainingStudio } from './components/UserVoiceTrainingStudio';
 import { useSleepTimer } from './hooks/useSleepTimer';
 import { useUserSync } from './hooks/useUserSync';
 
@@ -47,11 +58,11 @@ export default function App() {
     }
   }, [books]);
 
-  // 2. Navigation & Views
-  const [currentView, setCurrentView] = useState<ViewMode>('home');
+  // 2. Navigation & Views (Defaults to 'audiobook-studio' per request)
+  const [currentView, setCurrentView] = useState<ViewMode>('audiobook-studio');
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [historyStack, setHistoryStack] = useState<ViewMode[]>(['home']);
+  const [historyStack, setHistoryStack] = useState<ViewMode[]>(['audiobook-studio']);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
 
   // 3. Playback Mode: 'book' (Sách nói) or 'music' (Kho nhạc)
@@ -70,7 +81,6 @@ export default function App() {
   const bookAudio = useBookAudioPlayer(books);
 
   const musicAudio = useMusicAudioPlayer(() => {
-    // Automatically pause book reading when music starts
     bookAudio.pause();
     setPlaybackMode('music');
   });
@@ -163,12 +173,10 @@ export default function App() {
       musicAudio.pauseMusic();
       setPlaybackMode('book');
 
-      // If book has appliedVoiceType === 'user_voice', activate user voice engine
       if (book.appliedVoiceType === 'user_voice') {
         bookAudio.updateVoiceSettings({ engine: 'user_voice' });
       }
 
-      // Increment readCount
       setBooks((prev) =>
         prev.map((b) => (b.id === book.id ? { ...b, readCount: (b.readCount || 0) + 1 } : b))
       );
@@ -200,7 +208,6 @@ export default function App() {
     (newBook: Book) => {
       setBooks((prev) => {
         const updated = [newBook, ...prev];
-        // Trigger background cloud sync
         userSync.syncCloudData(updated, musicAudio.tracks, bookAudio.voiceSettings.userProfiles || []);
         return updated;
       });
@@ -232,11 +239,11 @@ export default function App() {
     [selectedBook?.id]
   );
 
-  // Delete Book (Super Admin xuanduy.cn@gmail.com only)
+  // Delete Book (Admin only)
   const handleDeleteBook = useCallback(
     (bookId: string) => {
       if (!isAdmin) {
-        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa sách.');
+        alert('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa sách.');
         return;
       }
       if (bookAudio.currentBook?.id === bookId) {
@@ -246,9 +253,8 @@ export default function App() {
       setBooks(updatedBooks);
       if (selectedBook?.id === bookId) {
         setSelectedBook(null);
-        navigateTo('home');
+        navigateTo('all');
       }
-      // Sync deletion to cloud store so all devices stay updated
       userSync.syncCloudData(
         updatedBooks,
         musicAudio.tracks,
@@ -259,18 +265,18 @@ export default function App() {
     [isAdmin, bookAudio, books, selectedBook?.id, navigateTo, userSync, musicAudio.tracks]
   );
 
-  // Delete Chapter (Super Admin xuanduy.cn@gmail.com only)
+  // Delete Chapter
   const handleDeleteChapter = useCallback(
     (bookId: string, chapterId: string) => {
       if (!isAdmin) {
-        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa chương.');
+        alert('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa chương sách.');
         return;
       }
       setBooks((prev) =>
         prev.map((b) => {
           if (b.id === bookId) {
-            const updatedChapters = b.chapters.filter((c) => c.id !== chapterId);
-            const updated = { ...b, chapters: updatedChapters };
+            const filteredChapters = b.chapters.filter((c) => c.id !== chapterId);
+            const updated = { ...b, chapters: filteredChapters };
             if (selectedBook?.id === bookId) {
               setSelectedBook(updated);
             }
@@ -283,103 +289,103 @@ export default function App() {
     [isAdmin, selectedBook?.id]
   );
 
-  // Delete Music Track (Super Admin xuanduy.cn@gmail.com only)
+  // Delete Track (Admin only)
   const handleDeleteTrack = useCallback(
     (trackId: string) => {
       if (!isAdmin) {
-        console.warn('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa bài hát.');
+        alert('Chỉ tài khoản admin xuanduy.cn@gmail.com mới có quyền xóa bài hát.');
         return;
       }
       musicAudio.deleteTrack(trackId);
       const remainingTracks = musicAudio.tracks.filter((t) => t.id !== trackId);
-      // Sync track deletion to cloud store
-      userSync.syncCloudData(
-        books,
-        remainingTracks,
-        bookAudio.voiceSettings.userProfiles || [],
-        { deletedTrackIds: [trackId] }
-      );
+      userSync.syncCloudData(books, remainingTracks, bookAudio.voiceSettings.userProfiles || [], {
+        deletedTrackIds: [trackId],
+      });
     },
-    [isAdmin, musicAudio, userSync, books, bookAudio.voiceSettings.userProfiles]
+    [isAdmin, musicAudio, books, bookAudio.voiceSettings.userProfiles, userSync]
   );
 
-  // Toggle Favorite Book
-  const handleToggleFavorite = useCallback((bookId: string) => {
-    setBooks((prev) =>
-      prev.map((b) => {
-        if (b.id === bookId) {
-          const nextFav = !b.isFavorite;
-          return {
-            ...b,
-            isFavorite: nextFav,
-            likesCount: nextFav ? (b.likesCount || 0) + 1 : Math.max(0, (b.likesCount || 1) - 1),
-          };
-        }
-        return b;
-      })
-    );
-    setSelectedBook((prev) =>
-      prev && prev.id === bookId
-        ? {
-            ...prev,
-            isFavorite: !prev.isFavorite,
-            likesCount: !prev.isFavorite ? (prev.likesCount || 0) + 1 : Math.max(0, (prev.likesCount || 1) - 1),
+  // Toggle Favorite
+  const handleToggleFavorite = useCallback(
+    (bookId: string) => {
+      setBooks((prev) =>
+        prev.map((b) => {
+          if (b.id === bookId) {
+            const nextFav = !b.isFavorite;
+            const updated = {
+              ...b,
+              isFavorite: nextFav,
+              likesCount: nextFav ? (b.likesCount || 0) + 1 : Math.max(0, (b.likesCount || 1) - 1),
+            };
+            if (selectedBook?.id === bookId) {
+              setSelectedBook(updated);
+            }
+            return updated;
           }
-        : prev
-    );
-  }, []);
+          return b;
+        })
+      );
+    },
+    [selectedBook?.id]
+  );
+
+  // User Voice Training save
+  const handleSaveVoiceProfile = useCallback(
+    (profile: UserVoiceProfile) => {
+      const existing = bookAudio.voiceSettings.userProfiles || [];
+      const updated = [profile, ...existing.filter((p) => p.id !== profile.id)];
+      bookAudio.updateVoiceSettings({
+        userProfiles: updated,
+        activeUserProfileId: profile.id,
+        engine: 'user_voice',
+      });
+      userSync.syncCloudData(books, musicAudio.tracks, updated);
+    },
+    [bookAudio, books, musicAudio.tracks, userSync]
+  );
 
   return (
-    <div className="h-screen w-screen bg-black text-white flex flex-col overflow-hidden font-sans select-none">
-      {/* Mobile PWA Install Banner */}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-black text-[#ffffff] font-sans antialiased selection:bg-[#1ed760] selection:text-black">
+      {/* Top PWA Banner */}
       <PWAInstallBanner />
 
-      {/* Upper Area: Sidebar + Main Content Stage */}
-      <div className="flex flex-1 overflow-hidden p-0 md:p-2 md:gap-2">
-        {/* Left Spotify Sidebar (Desktop only) */}
+      {/* Main Container */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Left Sidebar */}
         <SpotifySidebar
           books={books}
           activeBookId={bookAudio.currentBook?.id || null}
           isPlaying={bookAudio.isPlaying}
           currentView={currentView}
-          onNavigateHome={() => {
-            setSearchQuery('');
-            navigateTo('home');
-          }}
-          onNavigateSearch={() => {
-            navigateTo('search');
-          }}
-          onNavigateMusic={() => {
-            navigateTo('music-library');
-          }}
-          onNavigateBookLibrary={() => {
-            navigateTo('book-library');
-          }}
+          onNavigateAll={() => navigateTo('all')}
+          onNavigateAudiobook={() => navigateTo('audiobook-studio')}
+          onNavigateAIMusic={() => navigateTo('aimusic-studio')}
+          onNavigateVoiceTraining={() => navigateTo('voice-training')}
+          onNavigateMusic={() => navigateTo('music-library')}
+          onNavigateBookLibrary={() => navigateTo('book-library')}
           onSelectBook={handleSelectBook}
           onOpenAddModal={() => {
             setTargetBookForChapter(null);
             setIsAddModalOpen(true);
           }}
-          onOpenAddMusicModal={() => {
-            setIsAddMusicModalOpen(true);
-          }}
         />
 
         {/* Right Main Stage */}
         <main className="flex-1 bg-[#121212] rounded-none md:rounded-2xl overflow-hidden flex flex-col relative shadow-xl">
-          {/* Persistent Top Navigation Bar */}
+          {/* Top Navigation Bar with User Avatar replacing logo */}
           <SpotifyTopBar
             currentView={currentView}
+            onViewChange={(v) => navigateTo(v)}
             searchQuery={searchQuery}
             onSearchChange={(q) => {
               setSearchQuery(q);
-              if (q && currentView !== 'search') {
-                setCurrentView('search');
+              if (q && currentView !== 'all') {
+                setCurrentView('all');
               }
             }}
             onNavigateBack={handleNavigateBack}
             onNavigateForward={handleNavigateForward}
-            onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
+            onOpenVoiceSettings={() => navigateTo('voice-training')}
             onOpenAddModal={() => {
               setTargetBookForChapter(null);
               setIsAddModalOpen(true);
@@ -393,7 +399,50 @@ export default function App() {
 
           {/* Main Views Container */}
           <div className="flex-1 overflow-hidden flex flex-col relative">
-            {(currentView === 'home' || currentView === 'search') && (
+            {/* 1. AUDIOBOOK CREATOR STUDIO (Tạo Sách Audio) */}
+            {currentView === 'audiobook-studio' && (
+              <AudiobookCreatorStudio
+                userVoiceProfiles={bookAudio.voiceSettings.userProfiles || []}
+                onSaveBookToLibrary={(newBook: Book) => {
+                  handleAddBook(newBook);
+                }}
+                onOpenVoiceTraining={() => navigateTo('voice-training')}
+              />
+            )}
+
+            {/* 2. AI MUSIC GENERATOR STUDIO (Tạo Nhạc AI) */}
+            {currentView === 'aimusic-studio' && (
+              <AIMusicStudio
+                onSaveTrackToLibrary={(newTrack: MusicTrack) => {
+                  musicAudio.addCustomTrack(newTrack);
+                  handlePlayTrack(newTrack);
+                  userSync.syncCloudData(
+                    books,
+                    [newTrack, ...musicAudio.tracks],
+                    bookAudio.voiceSettings.userProfiles || []
+                  );
+                }}
+                savedTracks={musicAudio.tracks}
+              />
+            )}
+
+            {/* 3. USER VOICE TRAINING STUDIO (Huấn Luyện Giọng) */}
+            {currentView === 'voice-training' && (
+              <UserVoiceTrainingStudio
+                userProfiles={bookAudio.voiceSettings.userProfiles || []}
+                activeProfileId={bookAudio.voiceSettings.activeUserProfileId}
+                onSaveProfile={handleSaveVoiceProfile}
+                onSelectActiveProfile={(id) => {
+                  bookAudio.updateVoiceSettings({
+                    activeUserProfileId: id,
+                    engine: 'user_voice',
+                  });
+                }}
+              />
+            )}
+
+            {/* 4. HOME BROWSE VIEW ('all' - Tất cả, Kho sách, Kho nhạc) */}
+            {currentView === 'all' && (
               <HomeBrowseView
                 books={books}
                 activeBookId={bookAudio.currentBook?.id || null}
@@ -411,9 +460,13 @@ export default function App() {
                 onPlayTrack={handlePlayTrack}
                 onNavigateMusic={() => navigateTo('music-library')}
                 onNavigateBookLibrary={() => navigateTo('book-library')}
+                onNavigateAudiobook={() => navigateTo('audiobook-studio')}
+                onNavigateAIMusic={() => navigateTo('aimusic-studio')}
+                onNavigateVoiceTraining={() => navigateTo('voice-training')}
               />
             )}
 
+            {/* 5. BOOK LIBRARY VIEW */}
             {currentView === 'book-library' && (
               <BookLibraryView
                 books={books}
@@ -429,6 +482,7 @@ export default function App() {
               />
             )}
 
+            {/* 6. BOOK DETAIL VIEW */}
             {currentView === 'book-detail' && selectedBook && (
               <BookDetailView
                 book={selectedBook}
@@ -457,6 +511,7 @@ export default function App() {
               />
             )}
 
+            {/* 7. MUSIC LIBRARY VIEW */}
             {currentView === 'music-library' && (
               <MusicLibraryView
                 tracks={musicAudio.tracks}
@@ -482,10 +537,9 @@ export default function App() {
         </main>
       </div>
 
-      {/* Sticky Bottom Player Bar (The Dual Spotify Player for Book & Music) */}
+      {/* Sticky Bottom Player Bar (Dual Spotify Player for Book & Music) */}
       <SpotifyBottomPlayer
         playbackMode={playbackMode}
-        // Book Props
         currentBook={bookAudio.currentBook}
         currentChapter={bookAudio.currentChapter}
         isPlayingBook={bookAudio.isPlaying}
@@ -508,8 +562,6 @@ export default function App() {
         onToggleReader={() => setIsReaderOpen((prev) => !prev)}
         onToggleFavoriteBook={handleToggleFavorite}
         onOpenBookDetail={(b) => handleSelectBook(b)}
-
-        // Music Props
         currentTrack={musicAudio.currentTrack}
         isPlayingMusic={musicAudio.isPlayingMusic}
         onTogglePlayMusic={() => {
@@ -528,8 +580,6 @@ export default function App() {
         onToggleLoop={musicAudio.toggleLoop}
         onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
         onOpenMusicLyrics={(track) => setSelectedTrackForLyrics(track)}
-
-        // Shared Controls
         playbackRate={bookAudio.playbackRate}
         volume={bookAudio.volume}
         isMuted={bookAudio.isMuted}
@@ -538,15 +588,13 @@ export default function App() {
           bookAudio.setVolume(v);
         }}
         onToggleMute={bookAudio.toggleMute}
-
-        // Sleep Timer
         sleepTimerOption={sleepTimer.timerOption}
         sleepTimerFormatted={sleepTimer.formattedTime}
         onSetSleepTimer={sleepTimer.setTimer}
         isSleepTimerActive={sleepTimer.isActive}
       />
 
-      {/* Synchronized Reader / Spotify Lyrics View Overlay for Books */}
+      {/* Synchronized Reader Overlay */}
       {isReaderOpen && bookAudio.currentBook && bookAudio.currentChapter && (
         <ReaderModeView
           book={bookAudio.currentBook}
@@ -560,16 +608,18 @@ export default function App() {
         />
       )}
 
-      {/* Music Lyrics Karaoke Modal for Songs */}
+      {/* Music Lyrics Modal */}
       <MusicLyricsModal
-        isOpen={!!selectedTrackForLyrics}
+        isOpen={Boolean(selectedTrackForLyrics)}
         onClose={() => setSelectedTrackForLyrics(null)}
         track={selectedTrackForLyrics}
-        isPlaying={musicAudio.isPlayingMusic}
+        isPlaying={musicAudio.isPlayingMusic && musicAudio.currentTrack?.id === selectedTrackForLyrics?.id}
         onTogglePlay={() => {
-          setPlaybackMode('music');
-          bookAudio.pause();
-          musicAudio.togglePlayMusic();
+          if (musicAudio.currentTrack?.id === selectedTrackForLyrics?.id) {
+            musicAudio.togglePlayMusic();
+          } else if (selectedTrackForLyrics) {
+            handlePlayTrack(selectedTrackForLyrics);
+          }
         }}
       />
 
@@ -585,7 +635,7 @@ export default function App() {
         onAddChapterToBook={handleAddChapterToBook}
       />
 
-      {/* Add Music Track Modal (User can add songs via upload, link, or melody) */}
+      {/* Add Music Track Modal */}
       <AddMusicModal
         isOpen={isAddMusicModalOpen}
         onClose={() => setIsAddMusicModalOpen(false)}
@@ -596,7 +646,7 @@ export default function App() {
         }}
       />
 
-      {/* Voice Settings Modal (Phòng Thu Giọng Người Dùng) */}
+      {/* Voice Settings Modal */}
       <VoiceSettingsModal
         isOpen={isVoiceSettingsOpen}
         onClose={() => setIsVoiceSettingsOpen(false)}
@@ -621,41 +671,29 @@ export default function App() {
           userSync.syncCloudData(books, musicAudio.tracks, bookAudio.voiceSettings.userProfiles || []);
         }}
         onLogin={userSync.loginWithEmail}
+        onLoginWithCredentials={userSync.loginWithCredentials}
+        onUpdateProfile={userSync.updateProfile}
         onLogout={userSync.logout}
-        onOpenVoiceSettings={() => setIsVoiceSettingsOpen(true)}
+        onOpenVoiceSettings={() => navigateTo('voice-training')}
         totalBooksCount={books.length}
         totalTracksCount={musicAudio.tracks.length}
-        totalCustomCount={books.filter((b) => b.id.startsWith('custom-')).length + musicAudio.tracks.filter((t) => t.isCustom).length}
+        totalCustomCount={
+          books.filter((b) => b.id.startsWith('custom-')).length +
+          musicAudio.tracks.filter((t) => t.isCustom).length
+        }
         sleepTimerOption={sleepTimer.timerOption}
         sleepTimerFormatted={sleepTimer.formattedTime}
         onSetSleepTimer={sleepTimer.setTimer}
         voiceSettings={bookAudio.voiceSettings}
       />
 
-      {/* Dedicated Mobile Bottom Navigation (Fixed on phones) */}
+      {/* Dedicated Mobile Bottom Navigation (4 ergonomic studio tabs, no redundant settings button) */}
       <MobileBottomNav
         currentView={currentView}
-        onNavigateHome={() => {
-          setSearchQuery('');
-          navigateTo('home');
-        }}
-        onNavigateMusic={() => {
-          navigateTo('music-library');
-        }}
-        onNavigateBookLibrary={() => {
-          navigateTo('book-library');
-        }}
-        onOpenAddBook={() => {
-          setTargetBookForChapter(null);
-          setIsAddModalOpen(true);
-        }}
-        onOpenAddMusic={() => {
-          setIsAddMusicModalOpen(true);
-        }}
-        onOpenUserAccount={() => {
-          setIsUserAccountOpen(true);
-        }}
-        user={userSync.user}
+        onNavigateAudiobook={() => navigateTo('audiobook-studio')}
+        onNavigateAIMusic={() => navigateTo('aimusic-studio')}
+        onNavigateVoiceTraining={() => navigateTo('voice-training')}
+        onNavigateLibrary={() => navigateTo('all')}
       />
     </div>
   );
