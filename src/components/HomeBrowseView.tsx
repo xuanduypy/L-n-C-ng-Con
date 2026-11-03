@@ -135,7 +135,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
               </div>
             </div>
             <p className="text-xs text-neutral-400">
-              Đưa văn bản vào, tạo sách nói truyền cảm & cho phép tải về âm thanh (.WAV).
+              Đưa văn bản vào, tạo sách nói truyền cảm & cho phép tải về âm thanh.
             </p>
           </div>
 
@@ -157,7 +157,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
               </div>
             </div>
             <p className="text-xs text-neutral-400">
-              Soạn giai điệu, hòa âm đa nhạc cụ, viết lời bài hát & tải về bài hát (.WAV).
+              Soạn giai điệu, hòa âm đa nhạc cụ, viết lời bài hát & tải về bài hát.
             </p>
           </div>
 
@@ -358,7 +358,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                <span>Sách của bạn (Tự thêm văn bản)</span>
+                <span>Sách của bạn</span>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#1ed760]/20 text-[#1ed760]">
                   {customBooks.length} tác phẩm
                 </span>

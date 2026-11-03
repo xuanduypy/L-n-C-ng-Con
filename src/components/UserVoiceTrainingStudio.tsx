@@ -336,9 +336,9 @@ export const UserVoiceTrainingStudio: React.FC<UserVoiceTrainingStudioProps> = (
                   className="w-full bg-[#121212] border border-[#333] focus:border-[#1ed760] rounded-xl px-3 py-2 text-xs text-white outline-none"
                 >
                   <option value="user">Tự nhiên / Của tôi</option>
-                  <option value="mom">Giọng Nữ / Mẹ yêu (Ngọt ngào)</option>
-                  <option value="dad">Giọng Nam / Ba kể (Trầm ấm)</option>
-                  <option value="storyteller">Người Kể Chuyện (Chậm rãi, truyền cảm)</option>
+                  <option value="mom">Giọng Nữ / Mẹ yêu</option>
+                  <option value="dad">Giọng Nam / Ba kể</option>
+                  <option value="storyteller">Người Kể Chuyện</option>
                 </select>
               </div>
             </div>
@@ -496,7 +496,7 @@ export const UserVoiceTrainingStudio: React.FC<UserVoiceTrainingStudioProps> = (
           {userProfiles.length > 0 && (
             <div className="p-4 rounded-2xl bg-[#181818] border border-[#2a2a2a] space-y-2.5">
               <h4 className="font-bold text-xs uppercase tracking-wider text-neutral-400">
-                Danh Sách Giọng Của Bạn ({userProfiles.length})
+                Danh Sách Giọng Của Bạn
               </h4>
               <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
                 {userProfiles.map((p) => {

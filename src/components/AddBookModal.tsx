@@ -204,7 +204,7 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
                       </span>
                       {appliedVoiceType === 'user_voice' && <Check className="w-3.5 h-3.5 text-[#1ed760]" />}
                     </div>
-                    <p className="text-[10px] text-neutral-400 mt-0.5">Dùng giọng thu âm của bạn (Khuyên dùng)</p>
+                    <p className="text-[10px] text-neutral-400 mt-0.5">Dùng giọng thu âm của bạn</p>
                   </button>
 
                   <button
@@ -297,13 +297,13 @@ export const AddBookModal: React.FC<AddBookModalProps> = ({
                 {/* Cover Image URL */}
                 <div>
                   <label className="block text-xs font-bold uppercase text-neutral-400 mb-1">
-                    URL Ảnh bìa (Tùy chọn)
+                    URL Ảnh bìa
                   </label>
                   <input
                     type="url"
                     value={coverUrl}
                     onChange={(e) => setCoverUrl(e.target.value)}
-                    placeholder="https://... (hoặc chọn màu Spotify bên dưới)"
+                    placeholder="https://... hoặc chọn màu Spotify bên dưới"
                     className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-xl px-3 py-2 text-white outline-none"
                   />
                 </div>

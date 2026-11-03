@@ -143,7 +143,7 @@ export const INITIAL_BOOKS: Book[] = [
   },
   {
     id: 'book-hoang-tu-be',
-    title: 'Hoàng Tử Bé (Le Petit Prince)',
+    title: 'Hoàng Tử Bé',
     author: 'Antoine de Saint-Exupéry',
     category: 'Văn học thế giới',
     description: 'Bản trường ca tuyệt đẹp về tình yêu thương, sự ngây thơ và những điều cốt lõi chỉ có thể nhìn thấu bằng trái tim.',

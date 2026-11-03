@@ -153,7 +153,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
   // If nothing selected at all
   if (!hasContent) {
     return (
-      <footer className="hidden md:flex h-20 bg-[#121212] border-t border-[#282828] px-4 items-center justify-between text-neutral-500 text-xs select-none">
+      <footer className="hidden md:flex shrink-0 h-20 bg-[#121212] border-t border-[#282828] px-4 items-center justify-between text-neutral-500 text-xs select-none">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded bg-[#282828] flex items-center justify-center">
             <Music className="w-5 h-5 text-neutral-600" />
@@ -638,7 +638,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
       {/* ============================================================== */}
       {/* 3. DESKTOP FULL SPOTIFY BOTTOM PLAYER (Hidden on Mobile)       */}
       {/* ============================================================== */}
-      <footer className="hidden md:flex h-22 md:h-20 bg-[#181818] border-t border-[#282828] px-3 md:px-5 items-center justify-between z-40 select-none text-white relative">
+      <footer className="hidden md:flex shrink-0 h-22 md:h-20 bg-[#181818] border-t border-[#282828] px-3 md:px-5 items-center justify-between z-40 select-none text-white relative">
         {/* LEFT: Artwork & Meta */}
         <div className="flex items-center gap-3 min-w-0 w-1/4 max-w-[30%]">
           {isMusic && currentTrack ? (
@@ -927,7 +927,7 @@ export const SpotifyBottomPlayer: React.FC<SpotifyBottomPlayerProps> = ({
               <button
                 onClick={() => currentTrack && onOpenMusicLyrics?.(currentTrack)}
                 className="p-2 rounded-full transition-all flex items-center gap-1.5 text-xs font-medium text-neutral-400 hover:text-[#1ed760] hover:bg-[#222222]"
-                title="Xem lời bài hát (Spotify Lyrics)"
+                title="Xem lời bài hát"
               >
                 <FileText className="w-4 h-4" />
                 <span className="hidden lg:inline">Lời bài hát</span>

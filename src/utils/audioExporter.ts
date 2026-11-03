@@ -126,7 +126,7 @@ export interface VietnameseVoicePreset {
 export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
   {
     id: 'vi-diemmy',
-    name: 'Diễm My (Hà Nội)',
+    name: 'Diễm My',
     region: 'Bắc',
     gender: 'female',
     tag: 'Truyền cảm & Ngọt ngào',
@@ -139,7 +139,7 @@ export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
   },
   {
     id: 'vi-minhtri',
-    name: 'Minh Trí (Hà Nội)',
+    name: 'Minh Trí',
     region: 'Bắc',
     gender: 'male',
     tag: 'Trầm ấm & Chững chạc',
@@ -152,7 +152,7 @@ export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
   },
   {
     id: 'vi-maiphuong',
-    name: 'Mai Phương (Sài Gòn)',
+    name: 'Mai Phương',
     region: 'Nam',
     gender: 'female',
     tag: 'Dịu dàng & Gần gũi',
@@ -165,7 +165,7 @@ export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
   },
   {
     id: 'vi-quocbao',
-    name: 'Quốc Bảo (Sài Gòn)',
+    name: 'Quốc Bảo',
     region: 'Nam',
     gender: 'male',
     tag: 'Hào sảng & Hiện đại',
@@ -191,7 +191,7 @@ export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
   },
   {
     id: 'vi-gemini-natural',
-    name: 'Google Gemini AI (Siêu thực)',
+    name: 'Google Gemini AI',
     region: 'AI Tự Nhiên',
     gender: 'female',
     tag: 'Ngữ điệu người thật',

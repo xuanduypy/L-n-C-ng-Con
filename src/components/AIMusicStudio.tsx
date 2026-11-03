@@ -200,7 +200,7 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
             <Music className="w-6 h-6 text-purple-400" />
-            <span>Phòng Tạo Nhạc AI (AI Music Studio)</span>
+            <span>Phòng Tạo Nhạc AI</span>
           </h2>
           <p className="text-xs text-neutral-400 mt-0.5">
             Sáng tác giai điệu đa nhạc cụ, hòa âm phối khí tự động và cho phép tải về định dạng âm thanh chất lượng cao.
@@ -213,7 +213,7 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow active:scale-95 self-start sm:self-auto"
           >
             <Download className="w-4 h-4 stroke-[3]" />
-            <span>Tải Về Bài Hát (.WAV)</span>
+            <span>Tải Về Bài Hát</span>
           </button>
         )}
       </div>
@@ -232,7 +232,7 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Nhập tên bài hát hoặc ý tưởng (ví dụ: Bản giao hưởng ngắm trăng sao, Ru bé ngủ say...)"
+              placeholder="Nhập tên bài hát hoặc ý tưởng, ví dụ: Bản giao hưởng ngắm trăng sao, Ru bé ngủ say..."
               className="w-full bg-[#121212] border border-[#333] focus:border-purple-500 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white outline-none"
             />
 
@@ -288,10 +288,10 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
                 onChange={(e) => setDurationSec(Number(e.target.value))}
                 className="w-full bg-[#121212] border border-[#333] rounded-xl px-3 py-2 text-xs text-white outline-none"
               >
-                <option value={20}>20 giây (Mẫu ngắn)</option>
-                <option value={30}>30 giây (Chuẩn)</option>
-                <option value={45}>45 giây (Trọn vẹn)</option>
-                <option value={60}>60 giây (Bản dài)</option>
+                <option value={20}>20 giây</option>
+                <option value={30}>30 giây</option>
+                <option value={45}>45 giây</option>
+                <option value={60}>60 giây</option>
               </select>
             </div>
 
@@ -315,7 +315,7 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-neutral-300 uppercase tracking-wider flex items-center gap-2">
                 <FileText className="w-4 h-4 text-amber-400" />
-                <span>Lời Bài Hát (Tùy Chọn)</span>
+                <span>Lời Bài Hát</span>
               </label>
 
               <button

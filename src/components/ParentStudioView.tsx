@@ -302,7 +302,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span>Kho Dữ Liệu NotebookLM (4 Kho)</span>
+            <span>Kho Dữ Liệu NotebookLM</span>
           </button>
 
           <button
@@ -314,7 +314,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
             }`}
           >
             <TrendingUp className="w-4 h-4" />
-            <span>Tiến Trình & Lời Bé Nói ({history.length})</span>
+            <span>Tiến Trình & Lời Bé Nói</span>
           </button>
 
           <button
@@ -631,7 +631,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
 
                     <div>
                       <label className="font-bold text-slate-700 block mb-1">
-                        Chọn tệp văn bản từ máy (.txt, .md, .json):
+                        Chọn tệp văn bản từ máy: txt, md, json:
                       </label>
                       <input
                         type="file"
@@ -927,7 +927,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
             <div className="bg-slate-50 p-4 rounded-2xl space-y-4 text-xs">
               <div>
                 <div className="flex justify-between items-center font-bold mb-1">
-                  <span>Cao độ giọng (Pitch):</span>
+                  <span>Cao độ giọng:</span>
                   <span className="text-rose-600">{voiceSettings.pitch.toFixed(2)}</span>
                 </div>
                 <input
@@ -948,7 +948,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
 
               <div>
                 <div className="flex justify-between items-center font-bold mb-1">
-                  <span>Tốc độ đọc (Speed):</span>
+                  <span>Tốc độ đọc:</span>
                   <span className="text-rose-600">{voiceSettings.rate.toFixed(2)}x</span>
                 </div>
                 <input
@@ -1006,9 +1006,9 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { hours: 24, label: 'Sau 24 giờ (1 ngày)' },
-                  { hours: 72, label: 'Sau 3 ngày (Khuyên dùng)' },
-                  { hours: 168, label: 'Sau 7 ngày (1 tuần)' },
+                  { hours: 24, label: 'Sau 24 giờ' },
+                  { hours: 72, label: 'Sau 3 ngày' },
+                  { hours: 168, label: 'Sau 7 ngày' },
                   { hours: 720, label: 'Sau 30 ngày' },
                 ].map((item) => (
                   <button
@@ -1034,7 +1034,7 @@ export const ParentStudioView: React.FC<ParentStudioViewProps> = ({
             {/* PIN & Profile */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">Mã PIN phụ huynh (4 số):</label>
+                <label className="font-bold text-slate-700 block mb-1">Mã PIN phụ huynh:</label>
                 <input
                   type="password"
                   maxLength={4}

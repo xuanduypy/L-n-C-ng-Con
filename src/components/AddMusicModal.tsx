@@ -101,7 +101,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
     if (!file) return;
 
     if (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)) {
-      setErrorMsg('Vui lòng chọn tệp âm thanh hợp lệ (.mp3, .wav, .m4a, .ogg)');
+      setErrorMsg('Vui lòng chọn tệp âm thanh hợp lệ: mp3, wav, m4a, ogg');
       return;
     }
 
@@ -317,7 +317,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
           {sourceType === 'url' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-neutral-400 uppercase">
-                Đường Dẫn Âm Thanh (URL MP3/Audio Link)
+                Đường Dẫn Âm Thanh
               </label>
               <input
                 type="url"
@@ -452,7 +452,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
           <div className="space-y-1">
             <div className="flex justify-between items-center">
               <label className="block text-xs font-bold text-neutral-400 uppercase">
-                Lời Bài Hát (Để Bé & Ba Mẹ Cùng Hát Karaoke)
+                Lời Bài Hát
               </label>
               <span className="text-[10px] text-neutral-500">Tùy chọn</span>
             </div>
@@ -460,7 +460,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
               rows={3}
               value={lyrics}
               onChange={(e) => setLyrics(e.target.value)}
-              placeholder="Dán lời bài hát vào đây để hiển thị chế độ Lời Bài Hát (Lyrics) khi phát nhạc..."
+              placeholder="Dán lời bài hát vào đây để hiển thị chế độ Lời Bài Hát khi phát nhạc..."
               className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg p-2.5 text-white text-xs outline-none leading-relaxed"
             />
           </div>

@@ -161,7 +161,7 @@ export const DailyEnglishTab: React.FC<DailyEnglishTabProps> = ({
               className="flex-1 min-w-[140px] flex items-center justify-center gap-1.5 bg-gradient-to-r from-rose-500 to-amber-500 hover:opacity-95 text-white py-2.5 px-4 rounded-2xl font-black text-xs shadow-md shadow-rose-200 active:scale-95 transition"
             >
               <Sparkles className="w-4 h-4" />
-              <span>Luyện Phát Âm Với Cún (AI Chấm Điểm)</span>
+              <span>Luyện Phát Âm Với Cún</span>
             </button>
 
             <button

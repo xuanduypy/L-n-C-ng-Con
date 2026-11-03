@@ -474,7 +474,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                       <optgroup label="Giọng Tiếng Việt Bản Địa">
                         {vietnameseVoices.map((v) => (
                           <option key={v.voiceURI} value={v.voiceURI}>
-                            {v.name} ({v.lang})
+                            {v.name} - {v.lang}
                           </option>
                         ))}
                       </optgroup>
@@ -482,7 +482,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     <optgroup label="Tất Cả Giọng Trong Máy">
                       {otherVoices.slice(0, 20).map((v) => (
                         <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name} ({v.lang})
+                          {v.name} - {v.lang}
                         </option>
                       ))}
                     </optgroup>
@@ -494,16 +494,16 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
               {settings.engine === 'gemini' && (
                 <div className="space-y-2">
                   <label className="block text-xs font-bold uppercase text-neutral-400 tracking-wider">
-                    Nhân Vật Giọng Đọc AI (Gemini Studio)
+                    Nhân Vật Giọng Đọc AI
                   </label>
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                     {(
                       [
-                        { id: 'Kore', label: 'Kore (Nữ dịu dàng)' },
-                        { id: 'Puck', label: 'Puck (Nam ấm áp)' },
-                        { id: 'Fenrir', label: 'Fenrir (Trầm hùng)' },
-                        { id: 'Zephyr', label: 'Zephyr (Trong trẻo)' },
-                        { id: 'Charon', label: 'Charon (Điềm tĩnh)' },
+                        { id: 'Kore', label: 'Kore - Nữ dịu dàng' },
+                        { id: 'Puck', label: 'Puck - Nam ấm áp' },
+                        { id: 'Fenrir', label: 'Fenrir - Trầm hùng' },
+                        { id: 'Zephyr', label: 'Zephyr - Trong trẻo' },
+                        { id: 'Charon', label: 'Charon - Điềm tĩnh' },
                       ] as const
                     ).map((v) => (
                       <button
@@ -528,7 +528,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                 <div>
                   <div className="flex justify-between items-center text-xs mb-1.5">
                     <span className="font-bold text-neutral-400 uppercase">
-                      Tốc Độ Đọc (Nhịp Kể Chuyện)
+                      Tốc Độ Đọc
                     </span>
                     <span className="font-bold text-[#1ed760]">{settings.rate}x</span>
                   </div>
@@ -542,16 +542,16 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     className="w-full h-1.5 bg-[#444] rounded-lg appearance-none cursor-pointer accent-[#1ed760]"
                   />
                   <div className="flex justify-between text-[10px] text-neutral-400 mt-1">
-                    <span>Ru ngủ (0.8x)</span>
-                    <span>Tự nhiên (1.0x)</span>
-                    <span>Nhanh (1.5x)</span>
+                    <span>Ru ngủ 0.8x</span>
+                    <span>Tự nhiên 1.0x</span>
+                    <span>Nhanh 1.5x</span>
                   </div>
                 </div>
 
                 <div>
                   <div className="flex justify-between items-center text-xs mb-1.5">
                     <span className="font-bold text-neutral-400 uppercase">
-                      Cao Độ Giọng (Trầm / Trong)
+                      Cao Độ Giọng
                     </span>
                     <span className="font-bold text-[#1ed760]">{settings.pitch}x</span>
                   </div>
@@ -565,9 +565,9 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
                     className="w-full h-1.5 bg-[#444] rounded-lg appearance-none cursor-pointer accent-[#1ed760]"
                   />
                   <div className="flex justify-between text-[10px] text-neutral-400 mt-1">
-                    <span>Trầm ấm (0.85x)</span>
-                    <span>Chuẩn (1.0x)</span>
-                    <span>Trong trẻo (1.2x)</span>
+                    <span>Trầm ấm 0.85x</span>
+                    <span>Chuẩn 1.0x</span>
+                    <span>Trong trẻo 1.2x</span>
                   </div>
                 </div>
               </div>
@@ -761,7 +761,7 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
 
                   <div>
                     <div className="flex justify-between items-center text-xs mb-1">
-                      <span className="font-bold text-neutral-400">Cao Độ Giọng (Pitch)</span>
+                      <span className="font-bold text-neutral-400">Cao Độ Giọng</span>
                       <span className="font-bold text-[#1ed760]">{recordingPitch}x</span>
                     </div>
                     <input

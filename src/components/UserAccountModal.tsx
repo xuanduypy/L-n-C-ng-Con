@@ -363,7 +363,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="text-[11px] text-neutral-400 block mb-1">Tên hiển thị (tuỳ chọn)</label>
+                        <label className="text-[11px] text-neutral-400 block mb-1">Tên hiển thị</label>
                         <input
                           type="text"
                           value={inputName}
@@ -428,7 +428,7 @@ export const UserAccountModal: React.FC<UserAccountModalProps> = ({
                         <span>Chọn Ảnh Đại Diện 12 Con Giáp</span>
                       </label>
                       <span className="text-[11px] text-amber-400 font-bold">
-                        Đang chọn: {currentZodiac.emoji} {currentZodiac.name} ({currentZodiac.animal})
+                        Đang chọn: {currentZodiac.emoji} {currentZodiac.name} • {currentZodiac.animal}
                       </span>
                     </div>
 

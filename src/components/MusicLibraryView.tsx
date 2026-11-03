@@ -188,7 +188,7 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
             {customTracksCount > 0 && !selectedAlbumId && (
               <>
                 <span>•</span>
-                <span className="text-blue-300">({customTracksCount} bài tự thêm)</span>
+                <span className="text-blue-300">{customTracksCount} bài tự thêm</span>
               </>
             )}
           </div>
@@ -384,7 +384,7 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
                 ? `Danh sách bài trong Album`
                 : 'Danh Sách Bài Hát'}
             </span>
-            <span className="text-xs text-neutral-400 font-semibold">({filteredTracks.length} bài)</span>
+            <span className="text-xs text-neutral-400 font-semibold">• {filteredTracks.length} bài</span>
           </div>
 
           <div className="text-[11px] text-neutral-400 hidden sm:flex items-center gap-6">
@@ -539,7 +539,7 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
                           setTrackToDelete(track);
                         }}
                         className="p-1.5 text-neutral-500 hover:text-rose-400 active:scale-90"
-                        title="Quyền Admin: Xóa bài hát này (kể cả nhạc mặc định)"
+                        title="Quyền Admin: Xóa bài hát này"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>

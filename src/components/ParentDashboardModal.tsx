@@ -303,7 +303,7 @@ export const ParentDashboardModal: React.FC<ParentDashboardModalProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:border-rose-400 outline-hidden"
                 >
                   <option value={10}>10 phút / ngày</option>
-                  <option value={15}>15 phút / ngày (Khuyên dùng)</option>
+                  <option value={15}>15 phút / ngày</option>
                   <option value={20}>20 phút / ngày</option>
                   <option value={30}>30 phút / ngày</option>
                 </select>

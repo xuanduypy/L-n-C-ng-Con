@@ -182,7 +182,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                 })
               }
               className="p-2.5 rounded-full hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 transition-colors ml-auto sm:ml-0"
-              title="Quyền Admin: Xóa cuốn sách này (kể cả sách mặc định)"
+              title="Quyền Admin: Xóa cuốn sách này"
             >
               <Trash2 className="w-5 h-5" />
             </button>
@@ -192,7 +192,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       {/* 3. Chapters Table List */}
       <div className="px-3 md:px-8 py-3">
         <h3 className="text-xs uppercase font-bold tracking-wider text-neutral-400 mb-2 px-2">
-          Danh Sách Các Chương ({book.chapters.length})
+          Danh Sách Các Chương
         </h3>
 
         <div className="divide-y divide-[#242424] bg-[#161616]/60 rounded-2xl border border-[#262626] overflow-hidden">

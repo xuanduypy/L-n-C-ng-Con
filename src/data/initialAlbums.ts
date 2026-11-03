@@ -13,7 +13,7 @@ export const INITIAL_ALBUMS: MusicAlbum[] = [
   },
   {
     id: 'album-ru-ngu',
-    title: 'Giai Điệu Ru Bé Ngủ Ngon (Lullabies)',
+    title: 'Giai Điệu Ru Bé Ngủ Ngon',
     description: 'Những thanh âm êm dịu, ấm áp vỗ về giấc ngủ ngon, đưa con vào thế giới giấc mơ thần tiên.',
     coverGradient: 'from-purple-600 via-indigo-900 to-[#121212]',
     coverBgColor: '#7e22ce',

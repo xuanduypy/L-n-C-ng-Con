@@ -428,7 +428,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
             <BookOpen className="w-6 h-6 text-[#1ed760]" />
-            <span>Xưởng Tạo Sách Audio (Text-to-Audiobook)</span>
+            <span>Xưởng Tạo Sách Audio</span>
           </h2>
           <p className="text-xs text-neutral-400 mt-1">
             Dán văn bản bất kỳ để chuyển thành sách nói, nghe trực tiếp với câu chữ đồng bộ và tải về tệp âm thanh WAV chất lượng cao.
@@ -444,7 +444,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
             title="Tải về tệp âm thanh của chương này"
           >
             <Download className="w-4 h-4 stroke-[3]" />
-            <span>{isSynthesizingAudio ? 'Đang xuất audio...' : 'Tải Về Audio (.WAV)'}</span>
+            <span>{isSynthesizingAudio ? 'Đang xuất audio...' : 'Tải Về Audio'}</span>
           </button>
 
           <button

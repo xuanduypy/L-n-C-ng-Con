@@ -116,7 +116,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
                   </div>
                   <div className="flex flex-col text-left">
                     <span className="font-extrabold text-white text-xs tracking-tight leading-none flex items-center gap-1">
-                      {user?.name || (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
+                      {user?.name ? user.name.replace(/\s*\(Admin\)/i, '') : (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
                       {user?.isAdmin && (
                         <span className="text-[9px] bg-amber-400 text-black px-1 rounded font-black">
                           ADMIN
@@ -155,53 +155,20 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
 
       {/* ================= DESKTOP LAYOUT (>= md) ================= */}
       <div className="hidden md:flex items-center justify-between w-full">
-        {/* Left: USER AVATAR IN PLACE OF LOGO */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onOpenUserAccount}
-            className="flex items-center gap-2.5 p-1.5 pr-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 hover:border-amber-400/60 active:scale-95 transition-all text-left shadow-md group"
-            title="Tài khoản, 12 con giáp & cài đặt"
-          >
-            <div
-              className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${
-                user?.isAdmin
-                  ? 'from-amber-400 to-yellow-500 text-black'
-                  : currentZodiac.color
-              } flex items-center justify-center text-xl shadow border border-white/25 shrink-0 group-hover:scale-105 transition-transform`}
-            >
-              {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
-            </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-extrabold text-white text-xs tracking-tight">
-                  {user?.name || (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
-                </span>
-                {user?.isAdmin ? (
-                  <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
-                    👑 ADMIN
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-amber-400 font-bold">
-                    {currentZodiac.emoji} {currentZodiac.name}
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] text-neutral-400">Tài khoản & Cài đặt</span>
-            </div>
-          </button>
-
+        {/* Left: Navigation Controls */}
+        <div className="flex items-center gap-2">
           {/* Navigation Arrows */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={onNavigateBack}
-              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30 border border-neutral-800/80 active:scale-95"
               title="Quay lại"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={onNavigateForward}
-              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30"
+              className="w-8 h-8 rounded-full bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-30 border border-neutral-800/80 active:scale-95"
               title="Đi tới"
             >
               <ChevronRight className="w-4 h-4" />
