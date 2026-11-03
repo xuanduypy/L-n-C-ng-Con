@@ -43,6 +43,6 @@ app.get('*', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Lớn Cùng Con server running on port ${PORT}`);
 });
