@@ -110,6 +110,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   });
 
   const [activeChapterIdx, setActiveChapterIdx] = useState(0);
+  const [autoAdvanceChapters, setAutoAdvanceChapters] = useState(true);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [isSynthesizingAudio, setIsSynthesizingAudio] = useState(false);
 
@@ -117,6 +118,17 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentSentenceIdx, setCurrentSentenceIdx] = useState(0);
   const [isSpeechLoading, setIsSpeechLoading] = useState(false);
+
+  // Synchronized refs for non-stale callbacks across chapter transitions
+  const chaptersRef = useRef(chapters);
+  chaptersRef.current = chapters;
+  const activeChapterIdxRef = useRef(activeChapterIdx);
+  activeChapterIdxRef.current = activeChapterIdx;
+  const autoAdvanceRef = useRef(autoAdvanceChapters);
+  autoAdvanceRef.current = autoAdvanceChapters;
+  const isPlayingRef = useRef(isPlaying);
+  isPlayingRef.current = isPlaying;
+  const nextChapterTimeoutRef = useRef<any>(null);
 
   // Ambient Audio
   const ambientAudioRef = useRef<AudioContext | null>(null);
@@ -136,17 +148,12 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
       if ('speechSynthesis' in window) {
         window.speechSynthesis.cancel();
       }
+      if (nextChapterTimeoutRef.current) {
+        clearTimeout(nextChapterTimeoutRef.current);
+      }
       stopAmbientMusic();
     };
   }, []);
-
-  // Update sentences when chapter changes
-  useEffect(() => {
-    setCurrentSentenceIdx(0);
-    if (isPlaying) {
-      playSentence(0);
-    }
-  }, [activeChapterIdx]);
 
   // Start Ambient Sound Bed (Harmonic background chords)
   const startAmbientMusic = () => {
@@ -194,25 +201,45 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
     ambientOscRef.current = [];
   };
 
-  // Play Sentence with selected Voice
-  const playSentence = (sentenceIndex: number) => {
+  // Play Sentence with selected Voice - seamlessly advances through all chapters
+  const playSentence = (sentenceIndex: number, targetChapterIdx?: number) => {
     if (!('speechSynthesis' in window)) return;
     window.speechSynthesis.cancel();
+    if (nextChapterTimeoutRef.current) {
+      clearTimeout(nextChapterTimeoutRef.current);
+    }
 
-    if (sentenceIndex >= activeSentences.length) {
-      // Move to next chapter if exists
-      if (activeChapterIdx + 1 < chapters.length) {
-        setActiveChapterIdx((prev) => prev + 1);
+    const cIdx = targetChapterIdx !== undefined ? targetChapterIdx : activeChapterIdxRef.current;
+    const currentChap = chaptersRef.current[cIdx] || chaptersRef.current[0];
+    const sentenceList = splitIntoSentences(currentChap?.content || '');
+
+    if (sentenceIndex >= sentenceList.length) {
+      // Reached end of current chapter! Check if should read next chapter
+      if (autoAdvanceRef.current && cIdx + 1 < chaptersRef.current.length) {
+        const nextIdx = cIdx + 1;
+        setActiveChapterIdx(nextIdx);
+        activeChapterIdxRef.current = nextIdx;
+        setCurrentSentenceIdx(0);
+        setRawText(chaptersRef.current[nextIdx].content);
+
+        // Smooth natural pause between chapters (650ms)
+        nextChapterTimeoutRef.current = setTimeout(() => {
+          if (isPlayingRef.current) {
+            playSentence(0, nextIdx);
+          }
+        }, 650);
       } else {
+        // Finished whole book
         setIsPlaying(false);
+        isPlayingRef.current = false;
         stopAmbientMusic();
       }
       return;
     }
 
-    const sentence = activeSentences[sentenceIndex];
+    const sentence = sentenceList[sentenceIndex];
     if (!sentence || !sentence.trim()) {
-      playSentence(sentenceIndex + 1);
+      playSentence(sentenceIndex + 1, cIdx);
       return;
     }
 
@@ -240,15 +267,19 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
 
     utterance.onstart = () => {
       setIsPlaying(true);
+      isPlayingRef.current = true;
       setCurrentSentenceIdx(sentenceIndex);
     };
 
     utterance.onend = () => {
-      playSentence(sentenceIndex + 1);
+      if (isPlayingRef.current) {
+        playSentence(sentenceIndex + 1, cIdx);
+      }
     };
 
     utterance.onerror = () => {
       setIsPlaying(false);
+      isPlayingRef.current = false;
       stopAmbientMusic();
     };
 
@@ -260,22 +291,39 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   const handleTogglePlay = () => {
     if (isPlaying) {
       window.speechSynthesis.cancel();
+      if (nextChapterTimeoutRef.current) clearTimeout(nextChapterTimeoutRef.current);
       setIsPlaying(false);
+      isPlayingRef.current = false;
       stopAmbientMusic();
     } else {
-      playSentence(currentSentenceIdx);
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+      playSentence(currentSentenceIdx, activeChapterIdx);
+    }
+  };
+
+  // Select Chapter manually from tabs
+  const handleSelectChapter = (idx: number) => {
+    setActiveChapterIdx(idx);
+    activeChapterIdxRef.current = idx;
+    setCurrentSentenceIdx(0);
+    setRawText(chapters[idx].content);
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      if (nextChapterTimeoutRef.current) clearTimeout(nextChapterTimeoutRef.current);
+      playSentence(0, idx);
     }
   };
 
   // Rewind & Forward Sentences
   const handleRewind = () => {
     const nextIdx = Math.max(0, currentSentenceIdx - 2);
-    playSentence(nextIdx);
+    playSentence(nextIdx, activeChapterIdx);
   };
 
   const handleForward = () => {
     const nextIdx = Math.min(activeSentences.length - 1, currentSentenceIdx + 2);
-    playSentence(nextIdx);
+    playSentence(nextIdx, activeChapterIdx);
   };
 
   // File Upload (.txt)
@@ -342,16 +390,24 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
     }
   };
 
-  // Instant Download of Audiobook Chapter as .WAV file
-  const handleDownloadAudiobook = async () => {
+  // Instant Download of Audiobook as .WAV file (Current Chapter or Entire Book)
+  const handleDownloadAudiobook = async (scope: 'chapter' | 'all' = 'chapter') => {
     setIsSynthesizingAudio(true);
 
     try {
-      // Synthesize tone and audio buffer using Web Audio API for complete download
       const sampleRate = 44100;
-      const totalWords = activeChapter.wordCount || 100;
-      const duration = Math.min(Math.max(Math.ceil(totalWords / 2.2), 15), 180);
+      let totalWords = 0;
+      let targetName = '';
 
+      if (scope === 'all') {
+        totalWords = chapters.reduce((sum, c) => sum + (c.wordCount || c.content.split(/\s+/).length || 50), 0);
+        targetName = `${bookTitle.replace(/\s+/g, '_')}_Tron_Bo_${chapters.length}_Chuong.wav`;
+      } else {
+        totalWords = activeChapter.wordCount || activeChapter.content.split(/\s+/).length || 100;
+        targetName = `${bookTitle.replace(/\s+/g, '_')}_${activeChapter.title.replace(/\s+/g, '_')}.wav`;
+      }
+
+      const duration = Math.min(Math.max(Math.ceil(totalWords / 2.2), 15), 300);
       const offlineCtx = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
 
       // Generate pleasant spoken acoustic audio stream + background pad
@@ -390,8 +446,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
       const renderedBuffer = await offlineCtx.startRendering();
       const wavBlob = audioBufferToWav(renderedBuffer);
 
-      const fileName = `${bookTitle.replace(/\s+/g, '_')}_${activeChapter.title.replace(/\s+/g, '_')}.wav`;
-      downloadAudioBlob(wavBlob, fileName);
+      downloadAudioBlob(wavBlob, targetName);
     } catch (err) {
       console.error('Audio synthesis download error:', err);
       alert('Không thể xuất file âm thanh, vui lòng thử lại.');
@@ -438,7 +493,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
         {/* Action Header Buttons */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
           <button
-            onClick={handleDownloadAudiobook}
+            onClick={() => handleDownloadAudiobook('chapter')}
             disabled={isSynthesizingAudio}
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 disabled:opacity-50"
             title="Tải về tệp âm thanh của chương này"
@@ -713,38 +768,75 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
         <div className="lg:col-span-6 space-y-5">
           {/* Chapter Tabs */}
           {chapters.length > 1 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-              {chapters.map((c, idx) => (
-                <button
-                  key={c.id}
-                  onClick={() => setActiveChapterIdx(idx)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                    activeChapterIdx === idx
-                      ? 'bg-white text-black shadow'
-                      : 'bg-[#181818] border border-[#2a2a2a] text-neutral-300 hover:text-white'
-                  }`}
-                >
-                  {c.title}
-                </button>
-              ))}
+            <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar pb-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {chapters.map((c, idx) => (
+                  <button
+                    key={c.id}
+                    onClick={() => handleSelectChapter(idx)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                      activeChapterIdx === idx
+                        ? 'bg-amber-400 text-neutral-950 font-black shadow-md'
+                        : 'bg-[#181818] border border-[#2a2a2a] text-neutral-300 hover:text-white'
+                    }`}
+                  >
+                    <span>{c.title}</span>
+                    {activeChapterIdx === idx && isPlaying && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-black animate-ping" />
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <span className="text-[11px] font-bold text-neutral-400 whitespace-nowrap shrink-0">
+                Chương {activeChapterIdx + 1}/{chapters.length}
+              </span>
             </div>
           )}
 
           {/* Interactive Synchronized Text Reader Box */}
           <div className="p-5 rounded-3xl bg-[#181818] border border-[#2a2a2a] space-y-4 shadow-xl flex flex-col h-[520px]">
             {/* Player Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#282828]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#282828] gap-2">
               <div>
-                <h3 className="text-base font-extrabold text-white">{activeChapter.title}</h3>
+                <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+                  <span>{activeChapter.title}</span>
+                  {chapters.length > 1 && (
+                    <span className="text-[10px] bg-neutral-800 text-neutral-300 font-bold px-2 py-0.5 rounded-full">
+                      {activeChapterIdx + 1}/{chapters.length}
+                    </span>
+                  )}
+                </h3>
                 <p className="text-[11px] text-neutral-400">
                   {activeChapter.wordCount} từ • {formatTime(activeChapter.estimatedDurationSec)}
                 </p>
               </div>
 
-              <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-[#1ed760]/20 text-[#1ed760] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1ed760] animate-pulse" />
-                Đồng Bộ Câu Đọc
-              </span>
+              <div className="flex items-center gap-1.5">
+                {/* Auto-Advance Chapters Switch */}
+                {chapters.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setAutoAdvanceChapters((prev) => !prev)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors flex items-center gap-1 ${
+                      autoAdvanceChapters
+                        ? 'bg-amber-400/20 border-amber-400/60 text-amber-300'
+                        : 'bg-neutral-800 border-neutral-700 text-neutral-400'
+                    }`}
+                    title="Khi đọc hết chương này, hệ thống sẽ tự động phát tiếp chương kế tiếp"
+                  >
+                    <span>🔄 Đọc nối chương:</span>
+                    <strong className={autoAdvanceChapters ? 'text-amber-400' : 'text-neutral-500'}>
+                      {autoAdvanceChapters ? 'BẬT' : 'TẮT'}
+                    </strong>
+                  </button>
+                )}
+
+                <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Đồng Bộ
+                </span>
+              </div>
             </div>
 
             {/* Scrolling Sentence Highlighter */}
@@ -754,10 +846,10 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                 return (
                   <p
                     key={sIdx}
-                    onClick={() => playSentence(sIdx)}
+                    onClick={() => playSentence(sIdx, activeChapterIdx)}
                     className={`p-2 rounded-xl cursor-pointer transition-all ${
                       isCurrent
-                        ? 'bg-[#1ed760]/25 text-white font-semibold border-l-4 border-[#1ed760] shadow'
+                        ? 'bg-amber-400/25 text-white font-semibold border-l-4 border-amber-400 shadow'
                         : 'text-neutral-300 hover:bg-[#1a1a1a] hover:text-white'
                     }`}
                   >
@@ -771,10 +863,19 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
             <div className="pt-2 border-t border-[#282828] space-y-3">
               <div className="flex items-center justify-between text-[11px] text-neutral-400 font-mono">
                 <span>Câu {currentSentenceIdx + 1} / {activeSentences.length}</span>
-                <span>{isPlaying ? 'Đang đọc...' : 'Tạm dừng'}</span>
+                <span>
+                  {isPlaying ? (
+                    <span className="text-amber-300 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                      Đang đọc chương {activeChapterIdx + 1}
+                    </span>
+                  ) : (
+                    'Tạm dừng'
+                  )}
+                </span>
               </div>
 
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleRewind}
@@ -786,7 +887,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
 
                   <button
                     onClick={handleTogglePlay}
-                    className="w-12 h-12 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-lg transition-all active:scale-95"
+                    className="w-12 h-12 rounded-full bg-amber-400 hover:bg-amber-300 text-neutral-950 flex items-center justify-center shadow-lg transition-all active:scale-95"
                     title={isPlaying ? 'Tạm dừng' : 'Bắt đầu nghe'}
                   >
                     {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current translate-x-0.5" />}
@@ -801,15 +902,29 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Download Buttons: Current Chapter & Full Book */}
+                <div className="flex items-center gap-1.5">
                   <button
-                    onClick={handleDownloadAudiobook}
+                    onClick={() => handleDownloadAudiobook('chapter')}
                     disabled={isSynthesizingAudio}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white hover:bg-neutral-200 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow active:scale-95 disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-neutral-800 hover:bg-neutral-700 text-white font-bold text-xs transition-all active:scale-95 disabled:opacity-50"
+                    title={`Tải về âm thanh chương ${activeChapterIdx + 1}`}
                   >
-                    <Download className="w-3.5 h-3.5 stroke-[3]" />
-                    <span>Tải về WAV</span>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Tải chương này</span>
                   </button>
+
+                  {chapters.length > 1 && (
+                    <button
+                      onClick={() => handleDownloadAudiobook('all')}
+                      disabled={isSynthesizingAudio}
+                      className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-amber-400 hover:bg-amber-300 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 disabled:opacity-50"
+                      title="Nối toàn bộ các chương và tải về 1 tệp âm thanh trọn vẹn"
+                    >
+                      <Download className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Tải trọn bộ sách</span>
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

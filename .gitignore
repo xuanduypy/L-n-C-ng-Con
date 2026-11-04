@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+cloud_sync_cache.json
+*.local

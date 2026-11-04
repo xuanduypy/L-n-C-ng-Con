@@ -442,22 +442,35 @@ export function useBookAudioPlayer(books: Book[] = []) {
       }
 
       if (index >= sentenceList.length) {
-        // Chapter finished! Transition smoothly to next chapter
+        // Chapter finished! Transition smoothly and automatically to next chapter
         const book = currentBookRef.current;
         const currentChap = currentChapterRef.current;
-        if (book && currentChap) {
+        if (book && currentChap && book.chapters && book.chapters.length > 0) {
           const sorted = [...book.chapters].sort((a, b) => a.order - b.order);
           const currentIndex = sorted.findIndex((c) => c.id === currentChap.id);
           if (currentIndex !== -1 && currentIndex + 1 < sorted.length) {
             const nextChap = sorted[currentIndex + 1];
+            currentChapterRef.current = nextChap;
             setCurrentChapter(nextChap);
             setCurrentSentenceIndex(0);
+            currentSentenceIndexRef.current = 0;
+            const nextSentences = splitIntoSentences(nextChap.content);
+            sentencesRef.current = nextSentences;
+
+            // Smooth transition pause between chapters (700ms) like turning a page
+            nextSentenceTimeoutRef.current = setTimeout(() => {
+              if (isPlayingRef.current) {
+                playFromIndex(0);
+              }
+            }, 700);
             return;
           }
         }
-        // End of book reached
+        // End of whole book reached
         setIsPlaying(false);
-        setCurrentSentenceIndex(sentenceList.length - 1);
+        isPlayingRef.current = false;
+        setCurrentSentenceIndex(Math.max(0, sentenceList.length - 1));
+        stopAudio();
         return;
       }
 
@@ -482,15 +495,6 @@ export function useBookAudioPlayer(books: Book[] = []) {
     },
     [getNaturalPauseDuration, speakSentence]
   );
-
-  // Watch for chapter changes when playing to smoothly start from 0
-  useEffect(() => {
-    if (isPlayingRef.current && sentences.length > 0) {
-      playFromIndex(0);
-    }
-  }, [currentChapter?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Pause playback
   const pause = useCallback(() => {
     setIsPlaying(false);
     isPlayingRef.current = false;
