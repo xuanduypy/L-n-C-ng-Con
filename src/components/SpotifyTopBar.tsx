@@ -211,7 +211,7 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           {/* Sync indicator */}
           <div
             onClick={onOpenUserAccount}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 text-xs cursor-pointer hover:border-neutral-700"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 text-neutral-400 text-xs cursor-pointer hover:border-neutral-700 hover:text-white transition-colors"
             title="Đồng bộ đám mây"
           >
             <Cloud
@@ -224,6 +224,29 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
               }`}
             />
           </div>
+
+          {/* User Profile & Settings Trigger (Desktop) */}
+          <button
+            onClick={onOpenUserAccount}
+            className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-amber-400/50 transition-all text-xs font-bold text-white group cursor-pointer active:scale-95"
+            title="Tài khoản & Cài đặt DiNo"
+          >
+            <div
+              className={`w-7 h-7 rounded-full bg-gradient-to-tr ${
+                user?.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
+              } flex items-center justify-center text-sm shadow shrink-0 border border-white/20`}
+            >
+              {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
+            </div>
+            <span className="truncate max-w-[120px]">
+              {user?.name ? user.name.replace(/\s*\(Admin\)/i, '') : (user?.isAdmin ? 'Xuân Duy' : 'Tài khoản')}
+            </span>
+            {user?.isAdmin && (
+              <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
+                ADMIN
+              </span>
+            )}
+          </button>
         </div>
       </div>
     </header>
