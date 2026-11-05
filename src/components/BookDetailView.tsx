@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { Book, Chapter } from '../types/book';
 import { formatTime } from '../utils/textParser';
+import { ItemActionMenu } from './ItemActionMenu';
+import { downloadBookAudio } from '../utils/audioExporter';
 
 interface BookDetailViewProps {
   book: Book;
@@ -27,6 +29,7 @@ interface BookDetailViewProps {
   onOpenAddChapter: (book: Book) => void;
   onDeleteBook: (bookId: string) => void;
   onDeleteChapter: (bookId: string, chapterId: string) => void;
+  onRemixBook?: (book: Book) => void;
 }
 
 export const BookDetailView: React.FC<BookDetailViewProps> = ({
@@ -41,6 +44,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   onOpenAddChapter,
   onDeleteBook,
   onDeleteChapter,
+  onRemixBook,
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'book' | 'chapter';
@@ -170,6 +174,19 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             <Plus className="w-4 h-4 text-[#1ed760]" />
             <span>Thêm chương</span>
           </button>
+
+          {/* 3-Dot Action Menu (Tải về, Remix, Chia sẻ, Xóa) */}
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <ItemActionMenu
+              title={book.title}
+              subtitle={book.author}
+              type="book"
+              onDownload={() => downloadBookAudio(book)}
+              onRemix={() => onRemixBook?.(book)}
+              onDelete={() => onDeleteBook(book.id)}
+              isAdmin={isAdmin}
+            />
+          </div>
         </div>
 
           {/* Delete Book (Super Admin xuanduy.cn@gmail.com can delete any book) */}

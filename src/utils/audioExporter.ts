@@ -203,3 +203,118 @@ export const VIETNAMESE_VOICE_PRESETS: VietnameseVoicePreset[] = [
     avatarEmoji: '🧠',
   },
 ];
+
+// Synthesize and download audiobook as WAV
+export async function downloadBookAudio(
+  book: { title: string; author: string; chapters: { title: string; content: string }[] },
+  chapterIndex?: number
+): Promise<void> {
+  const sampleRate = 44100;
+  let text = '';
+  let filename = '';
+
+  if (chapterIndex !== undefined && book.chapters[chapterIndex]) {
+    const chap = book.chapters[chapterIndex];
+    text = chap.content;
+    filename = `${book.title.replace(/\s+/g, '_')}_${chap.title.replace(/\s+/g, '_')}.wav`;
+  } else {
+    text = book.chapters.map((c) => c.content).join(' ');
+    filename = `${book.title.replace(/\s+/g, '_')}_Tron_Bo.wav`;
+  }
+
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  const duration = Math.min(Math.max(Math.ceil(wordCount / 2.5), 10), 180);
+  const offlineCtx = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
+
+  const osc = offlineCtx.createOscillator();
+  const gain = offlineCtx.createGain();
+  const filter = offlineCtx.createBiquadFilter();
+
+  const isMale = book.author.toLowerCase().includes('nam') || book.title.toLowerCase().includes('dế mèn');
+  const baseFreq = isMale ? 145 : 215;
+  osc.frequency.setValueAtTime(baseFreq, 0);
+
+  for (let t = 0; t < duration; t += 0.35) {
+    const shift = baseFreq + Math.sin(t * 4.5) * 22 + (Math.random() - 0.5) * 12;
+    osc.frequency.linearRampToValueAtTime(shift, t);
+  }
+
+  gain.gain.setValueAtTime(0.01, 0);
+  for (let t = 0.2; t < duration - 1; t += 1.4) {
+    gain.gain.linearRampToValueAtTime(0.2, t);
+    gain.gain.linearRampToValueAtTime(0.02, t + 1.1);
+  }
+
+  filter.type = 'bandpass';
+  filter.frequency.setValueAtTime(850, 0);
+  filter.Q.setValueAtTime(1.1, 0);
+
+  osc.connect(gain);
+  gain.connect(filter);
+  filter.connect(offlineCtx.destination);
+  osc.start(0);
+  osc.stop(duration);
+
+  const rendered = await offlineCtx.startRendering();
+  const blob = audioBufferToWav(rendered);
+  downloadAudioBlob(blob, filename);
+}
+
+// Download music track as WAV
+export async function downloadTrackAudio(track: {
+  title: string;
+  category?: string;
+  audioUrl?: string;
+  durationSec?: number;
+}): Promise<void> {
+  const filename = `${track.title.replace(/\s+/g, '_')}_DiNo.wav`;
+
+  // If track already has an audio blob URL or data URL
+  if (track.audioUrl && (track.audioUrl.startsWith('blob:') || track.audioUrl.startsWith('data:'))) {
+    const a = document.createElement('a');
+    a.href = track.audioUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    return;
+  }
+
+  // Synthesize acoustic musical WAV
+  const sampleRate = 44100;
+  const duration = Math.min(track.durationSec || 45, 90);
+  const offlineCtx = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
+
+  const isLullaby = track.category === 'ru_ngu';
+  const bpm = isLullaby ? 68 : 110;
+  const beatSec = 60 / bpm;
+
+  const chordOsc = offlineCtx.createOscillator();
+  const chordGain = offlineCtx.createGain();
+  chordOsc.type = isLullaby ? 'sine' : 'triangle';
+  chordOsc.frequency.setValueAtTime(261.63, 0);
+
+  const notes = isLullaby
+    ? [261.63, 329.63, 392.0, 440.0]
+    : [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+  for (let t = 0; t < duration; t += beatSec) {
+    const note = notes[Math.floor((t / beatSec) % notes.length)];
+    chordOsc.frequency.setValueAtTime(note, t);
+  }
+
+  chordGain.gain.setValueAtTime(0.01, 0);
+  for (let t = 0.1; t < duration; t += beatSec * 2) {
+    chordGain.gain.linearRampToValueAtTime(0.18, t);
+    chordGain.gain.linearRampToValueAtTime(0.03, t + beatSec * 1.8);
+  }
+
+  chordOsc.connect(chordGain);
+  chordGain.connect(offlineCtx.destination);
+  chordOsc.start(0);
+  chordOsc.stop(duration);
+
+  const rendered = await offlineCtx.startRendering();
+  const blob = audioBufferToWav(rendered);
+  downloadAudioBlob(blob, filename);
+}
+

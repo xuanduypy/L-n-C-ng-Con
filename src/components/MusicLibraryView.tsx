@@ -18,6 +18,8 @@ import {
 import { MusicTrack, MusicAlbum } from '../types/book';
 import { INITIAL_ALBUMS } from '../data/initialAlbums';
 import { formatTime } from '../utils/textParser';
+import { ItemActionMenu } from './ItemActionMenu';
+import { downloadTrackAudio } from '../utils/audioExporter';
 
 interface MusicLibraryViewProps {
   tracks: MusicTrack[];
@@ -33,6 +35,7 @@ interface MusicLibraryViewProps {
   onDeleteTrack: (trackId: string) => void;
   onToggleFavoriteTrack: (trackId: string) => void;
   onOpenLyrics: (track: MusicTrack) => void;
+  onRemixTrack?: (track: MusicTrack) => void;
 }
 
 export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
@@ -49,6 +52,7 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
   onDeleteTrack,
   onToggleFavoriteTrack,
   onOpenLyrics,
+  onRemixTrack,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('Tất cả');
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -548,6 +552,19 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
                     <span className="text-[11px] text-neutral-400 font-mono w-10 text-right">
                       {formatTime(track.durationSec || 60)}
                     </span>
+
+                    {/* 3-Dot Action Menu (Tải về, Remix, Chia sẻ, Xóa) */}
+                    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <ItemActionMenu
+                        title={track.title}
+                        subtitle={track.artist}
+                        type="music"
+                        onDownload={() => downloadTrackAudio(track)}
+                        onRemix={() => onRemixTrack?.(track)}
+                        onDelete={() => onDeleteTrack(track.id)}
+                        isAdmin={isAdmin}
+                      />
+                    </div>
                   </div>
                 </div>
               );

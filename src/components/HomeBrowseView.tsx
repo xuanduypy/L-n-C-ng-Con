@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { Play, Pause, BookOpen, Music, Heart, ChevronRight } from 'lucide-react';
 import { Book, MusicTrack } from '../types/book';
 import { formatTime } from '../utils/textParser';
+import { ItemActionMenu } from './ItemActionMenu';
+import { downloadBookAudio, downloadTrackAudio } from '../utils/audioExporter';
 
 interface HomeBrowseViewProps {
   books: Book[];
@@ -22,6 +24,12 @@ interface HomeBrowseViewProps {
   onNavigateAudiobook?: () => void;
   onNavigateAIMusic?: () => void;
   onNavigateVoiceTraining?: () => void;
+  // Remix, Delete & Admin
+  onRemixBook?: (book: Book) => void;
+  onRemixTrack?: (track: MusicTrack) => void;
+  onDeleteBook?: (bookId: string) => void;
+  onDeleteTrack?: (trackId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
@@ -40,6 +48,11 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   onNavigateAudiobook,
   onNavigateAIMusic,
   onNavigateVoiceTraining,
+  onRemixBook,
+  onRemixTrack,
+  onDeleteBook,
+  onDeleteTrack,
+  isAdmin = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
 
@@ -93,97 +106,6 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto bg-gradient-to-b from-[#2a2412]/60 via-[#121212] to-[#121212] p-3 md:p-8 pb-44 md:pb-14 space-y-6 md:space-y-8 text-white select-none">
-      {/* Category Pills Header: Strictly Tất cả, Kho sách, Kho nhạc */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => {
-              setSelectedCategory(cat);
-              if (cat === 'Kho sách' && onNavigateBookLibrary) onNavigateBookLibrary();
-              if (cat === 'Kho nhạc' && onNavigateMusic) onNavigateMusic();
-            }}
-            className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${
-              selectedCategory === cat
-                ? 'bg-amber-400 text-black shadow-md'
-                : 'bg-[#222222] text-neutral-300 hover:bg-[#2c2c2c] hover:text-white'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* AI Studio Feature Cards */}
-      {!searchQuery && selectedCategory === 'Tất cả' && (
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div
-            onClick={onNavigateAudiobook}
-            className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/20 via-[#1c1c1c] to-[#161616] border border-amber-500/40 hover:border-amber-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-amber-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
-                🎙️
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black tracking-wider text-amber-400">
-                  GIỌNG ĐỌC AI & NGƯỜI DÙNG
-                </span>
-                <h3 className="font-extrabold text-sm text-white group-hover:text-amber-300">
-                  Tạo Sách Audio
-                </h3>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Đưa văn bản vào, tạo sách nói truyền cảm & cho phép tải về âm thanh.
-            </p>
-          </div>
-
-          <div
-            onClick={onNavigateAIMusic}
-            className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/20 via-[#1c1c1c] to-[#161616] border border-blue-500/40 hover:border-blue-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
-                🎵
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black tracking-wider text-blue-400">
-                  SÁNG TÁC TỰ ĐỘNG
-                </span>
-                <h3 className="font-extrabold text-sm text-white group-hover:text-blue-300">
-                  Tạo Nhạc AI
-                </h3>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Soạn giai điệu, hòa âm đa nhạc cụ, viết lời bài hát & tải về bài hát.
-            </p>
-          </div>
-
-          <div
-            onClick={onNavigateVoiceTraining}
-            className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/20 via-[#1c1c1c] to-[#161616] border border-purple-500/40 hover:border-purple-400 cursor-pointer transition-all hover:scale-[1.02] shadow-lg group"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-400 text-neutral-950 font-black flex items-center justify-center text-xl shadow">
-                🎧
-              </div>
-              <div>
-                <span className="text-[10px] uppercase font-black tracking-wider text-purple-400">
-                  PHÒNG THU CÁ NHÂN
-                </span>
-                <h3 className="font-extrabold text-sm text-white group-hover:text-purple-300">
-                  Huấn Luyện Giọng
-                </h3>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400">
-              Thu âm mẫu giọng của bạn để đọc sách nói với ngữ điệu riêng.
-            </p>
-          </div>
-        </section>
-      )}
 
       {/* Greeting & Top Quick 6 Tiles (Spotify Style) */}
       {!searchQuery && selectedCategory === 'Tất cả' && (
@@ -221,7 +143,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                   </div>
 
                   {/* Title & Author */}
-                  <div className="flex-1 px-3 min-w-0 pr-12">
+                  <div className="flex-1 px-3 min-w-0 pr-24">
                     <h3 className="font-bold text-sm md:text-base truncate group-hover:text-white transition-colors">
                       {book.title}
                     </h3>
@@ -230,25 +152,40 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                     </p>
                   </div>
 
-                  {/* Spotify Floating Green Play Button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPlayBook(book);
-                    }}
-                    className={`absolute right-3 w-10 h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-lg transition-all transform ${
-                      isCurrentPlaying
-                        ? 'opacity-100 scale-100'
-                        : 'opacity-100 sm:opacity-0 sm:translate-y-1 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 hover:scale-105 active:scale-95'
-                    }`}
-                    title={isCurrentPlaying ? 'Tạm dừng' : 'Nghe ngay'}
-                  >
-                    {isCurrentPlaying ? (
-                      <Pause className="w-5 h-5 fill-current" />
-                    ) : (
-                      <Play className="w-5 h-5 fill-current translate-x-0.5" />
-                    )}
-                  </button>
+                  {/* Actions: 3-Dot Menu & Play Button */}
+                  <div className="absolute right-2.5 flex items-center gap-1.5 z-10">
+                    <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <ItemActionMenu
+                        title={book.title}
+                        subtitle={book.author}
+                        type="book"
+                        onDownload={() => downloadBookAudio(book)}
+                        onRemix={() => onRemixBook?.(book)}
+                        onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
+                        isAdmin={isAdmin}
+                      />
+                    </div>
+
+                    {/* Spotify Floating Green Play Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPlayBook(book);
+                      }}
+                      className={`w-9 h-9 md:w-10 md:h-10 rounded-full bg-[#1ed760] text-black flex items-center justify-center shadow-lg transition-all transform ${
+                        isCurrentPlaying
+                          ? 'opacity-100 scale-100'
+                          : 'opacity-100 sm:opacity-0 sm:translate-y-1 sm:group-hover:opacity-100 sm:group-hover:translate-y-0 hover:scale-105 active:scale-95'
+                      }`}
+                      title={isCurrentPlaying ? 'Tạm dừng' : 'Nghe ngay'}
+                    >
+                      {isCurrentPlaying ? (
+                        <Pause className="w-4 h-4 md:w-5 md:h-5 fill-current" />
+                      ) : (
+                        <Play className="w-4 h-4 md:w-5 md:h-5 fill-current translate-x-0.5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -330,16 +267,35 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                     </button>
                   </div>
 
-                  <h4
-                    className={`font-bold text-sm truncate ${
-                      currentTrack?.id === track.id ? 'text-[#1ed760]' : 'text-white'
-                    }`}
-                    title={track.title}
-                  >
-                    {track.title}
-                  </h4>
-                  <p className="text-xs text-neutral-400 truncate mt-1">{track.artist}</p>
-                  <div className="flex items-center justify-between mt-1 text-[11px] text-neutral-500">
+                  {/* Title & 3-Dot Action Button Row on the Right */}
+                  <div className="flex items-start justify-between gap-1.5 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className={`font-bold text-sm truncate ${
+                          currentTrack?.id === track.id ? 'text-[#1ed760]' : 'text-white'
+                        }`}
+                        title={track.title}
+                      >
+                        {track.title}
+                      </h4>
+                      <p className="text-xs text-neutral-400 truncate mt-0.5">{track.artist}</p>
+                    </div>
+
+                    {/* 3-Dot Action Menu placed on the right of each track */}
+                    <div className="shrink-0 -mt-0.5" onClick={(e) => e.stopPropagation()}>
+                      <ItemActionMenu
+                        title={track.title}
+                        subtitle={track.artist}
+                        type="music"
+                        onDownload={() => downloadTrackAudio(track)}
+                        onRemix={() => onRemixTrack?.(track)}
+                        onDelete={onDeleteTrack ? () => onDeleteTrack(track.id) : undefined}
+                        isAdmin={isAdmin}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#262626] text-[11px] text-neutral-500">
                     <span className="capitalize">
                       {track.category === 'vui_nhon' ? 'Vui nhộn' : track.category === 'ru_ngu' ? 'Ru ngủ' : track.category}
                     </span>
@@ -377,7 +333,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
               <div>
                 <h4 className="font-bold text-base text-white">Bạn chưa thêm tác phẩm tự tạo nào</h4>
                 <p className="text-xs text-neutral-400 mt-1">
-                  Sử dụng nút <strong className="text-[#1ed760]">"Thêm sách bằng văn bản"</strong> ở thanh menu bên trái để dán truyện ngắn, bài viết hoặc tài liệu bạn muốn nghe!
+                  Chuyển sang mục <strong className="text-[#1ed760]">"Kho sách"</strong> hoặc <strong className="text-amber-400">"Tạo Sách Audio"</strong> để dán truyện ngắn, bài viết hoặc tài liệu bạn muốn nghe!
                 </p>
               </div>
             </div>
@@ -391,6 +347,9 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                   isPlaying={isPlaying}
                   onSelect={() => onSelectBook(book)}
                   onPlay={() => onPlayBook(book)}
+                  onRemix={() => onRemixBook?.(book)}
+                  onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
@@ -441,6 +400,9 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                   isPlaying={isPlaying}
                   onSelect={() => onSelectBook(book)}
                   onPlay={() => onPlayBook(book)}
+                  onRemix={() => onRemixBook?.(book)}
+                  onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
+                  isAdmin={isAdmin}
                 />
               ))}
             </div>
@@ -457,6 +419,9 @@ interface BookCardProps {
   isPlaying: boolean;
   onSelect: () => void;
   onPlay: () => void;
+  onRemix?: () => void;
+  onDelete?: () => void;
+  isAdmin?: boolean;
 }
 
 const BookCard: React.FC<BookCardProps> = ({
@@ -465,6 +430,9 @@ const BookCard: React.FC<BookCardProps> = ({
   isPlaying,
   onSelect,
   onPlay,
+  onRemix,
+  onDelete,
+  isAdmin = false,
 }) => {
   const isPlayingThis = isCurrentActive && isPlaying;
 
@@ -489,9 +457,9 @@ const BookCard: React.FC<BookCardProps> = ({
           </div>
         )}
 
-        {/* Favorite indicator badge */}
+        {/* Top Right: Favorite indicator badge */}
         {book.isFavorite && (
-          <div className="absolute top-2 right-2 p-1 rounded-full bg-black/60 backdrop-blur-sm">
+          <div className="absolute top-2 right-2 p-1 rounded-full bg-black/60 backdrop-blur-sm z-20">
             <Heart className="w-3.5 h-3.5 fill-[#1ed760] text-[#1ed760]" />
           </div>
         )}
@@ -522,18 +490,33 @@ const BookCard: React.FC<BookCardProps> = ({
         </button>
       </div>
 
-      {/* Book Title */}
-      <h4
-        className={`font-bold text-sm truncate ${
-          isCurrentActive ? 'text-[#1ed760]' : 'text-white'
-        }`}
-        title={book.title}
-      >
-        {book.title}
-      </h4>
+      {/* Book Title & 3-Dot Action Button Row on the Right */}
+      <div className="flex items-start justify-between gap-1.5 mt-1">
+        <div className="min-w-0 flex-1">
+          <h4
+            className={`font-bold text-sm truncate ${
+              isCurrentActive ? 'text-[#1ed760]' : 'text-white'
+            }`}
+            title={book.title}
+          >
+            {book.title}
+          </h4>
+          <p className="text-xs text-neutral-400 truncate mt-0.5">{book.author}</p>
+        </div>
 
-      {/* Author & Category */}
-      <p className="text-xs text-neutral-400 truncate mt-1">{book.author}</p>
+        {/* 3-Dot Action Menu placed on the right of each book */}
+        <div className="shrink-0 -mt-0.5" onClick={(e) => e.stopPropagation()}>
+          <ItemActionMenu
+            title={book.title}
+            subtitle={book.author}
+            type="book"
+            onDownload={() => downloadBookAudio(book)}
+            onRemix={() => onRemix?.()}
+            onDelete={onDelete}
+            isAdmin={isAdmin}
+          />
+        </div>
+      </div>
       <div className="flex items-center justify-between text-[11px] text-neutral-400 mt-2 pt-2 border-t border-[#262626]">
         <span className="text-amber-300 font-medium">
           {book.readCount ? `${book.readCount.toLocaleString()} đọc` : '3.4k đọc'}

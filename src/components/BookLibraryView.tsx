@@ -12,6 +12,8 @@ import {
   User,
 } from 'lucide-react';
 import { Book } from '../types/book';
+import { ItemActionMenu } from './ItemActionMenu';
+import { downloadBookAudio } from '../utils/audioExporter';
 
 interface BookLibraryViewProps {
   books: Book[];
@@ -21,6 +23,9 @@ interface BookLibraryViewProps {
   onPlayBook: (book: Book) => void;
   onOpenAddModal: () => void;
   onToggleFavorite: (bookId: string) => void;
+  onRemixBook?: (book: Book) => void;
+  onDeleteBook?: (bookId: string) => void;
+  isAdmin?: boolean;
 }
 
 export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
@@ -31,6 +36,9 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
   onPlayBook,
   onOpenAddModal,
   onToggleFavorite,
+  onRemixBook,
+  onDeleteBook,
+  isAdmin = false,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -209,23 +217,25 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
                       </div>
                     )}
 
-                    {/* Favorite Heart Button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleFavorite(book.id);
-                      }}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-neutral-300 hover:text-white active:scale-90"
-                      title={book.isFavorite ? 'Bỏ thích' : 'Thả tim sách'}
-                    >
-                      <Heart
-                        className={`w-4 h-4 ${
-                          book.isFavorite
-                            ? 'fill-rose-500 text-rose-500'
-                            : 'hover:text-white'
-                        }`}
-                      />
-                    </button>
+                    {/* Top Right: Favorite Button */}
+                    <div className="absolute top-2 right-2 flex items-center gap-1 z-20">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleFavorite(book.id);
+                        }}
+                        className="p-1.5 rounded-full bg-black/60 backdrop-blur-sm text-neutral-300 hover:text-white active:scale-90"
+                        title={book.isFavorite ? 'Bỏ thích' : 'Thả tim sách'}
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            book.isFavorite
+                              ? 'fill-rose-500 text-rose-500'
+                              : 'hover:text-white'
+                          }`}
+                        />
+                      </button>
+                    </div>
 
                     {/* Chapters badge */}
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[10px] font-medium text-neutral-300">
@@ -253,18 +263,33 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
                     </button>
                   </div>
 
-                  {/* Book Title */}
-                  <h4
-                    className={`font-bold text-sm truncate ${
-                      isCurrentActive ? 'text-[#1ed760]' : 'text-white'
-                    }`}
-                    title={book.title}
-                  >
-                    {book.title}
-                  </h4>
+                  {/* Title & 3-Dot Action Button Row on the Right */}
+                  <div className="flex items-start justify-between gap-1.5 mt-1">
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className={`font-bold text-sm truncate ${
+                          isCurrentActive ? 'text-[#1ed760]' : 'text-white'
+                        }`}
+                        title={book.title}
+                      >
+                        {book.title}
+                      </h4>
+                      <p className="text-xs text-neutral-400 truncate mt-0.5">{book.author}</p>
+                    </div>
 
-                  {/* Author & Stats */}
-                  <p className="text-xs text-neutral-400 truncate mt-1">{book.author}</p>
+                    {/* 3-Dot Action Menu placed on the right of each book */}
+                    <div className="shrink-0 -mt-0.5" onClick={(e) => e.stopPropagation()}>
+                      <ItemActionMenu
+                        title={book.title}
+                        subtitle={book.author}
+                        type="book"
+                        onDownload={() => downloadBookAudio(book)}
+                        onRemix={() => onRemixBook?.(book)}
+                        onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
+                        isAdmin={isAdmin}
+                      />
+                    </div>
+                  </div>
 
                   <div className="flex items-center justify-between text-[11px] text-neutral-400 mt-2 pt-2 border-t border-[#2a2a2a]">
                     <span className="flex items-center gap-1 text-amber-300">

@@ -7,7 +7,7 @@ import {
   Music,
   LayoutGrid,
 } from 'lucide-react';
-import { Book, ViewMode, UserAccount } from '../types/book';
+import { Book, ViewMode, UserAccount, ZODIAC_ANIMALS } from '../types/book';
 
 interface SpotifySidebarProps {
   books?: Book[];
@@ -35,9 +35,43 @@ export const SpotifySidebar: React.FC<SpotifySidebarProps> = ({
   onNavigateVoiceTraining,
   onNavigateMusic,
   onNavigateBookLibrary,
+  user,
+  onOpenUserAccount,
 }) => {
+  const currentZodiac = ZODIAC_ANIMALS.find((z) => z.id === user?.zodiacId) || ZODIAC_ANIMALS[0];
+
   return (
     <aside className="hidden md:flex w-64 md:w-72 bg-black flex-col h-full select-none border-r border-[#1f1f1f] text-[#b3b3b3] p-2 gap-2 shrink-0">
+      {/* 1. Ảnh đại diện người dùng & Menu Cài đặt (Vị trí cũ) */}
+      <button
+        onClick={onOpenUserAccount}
+        className="bg-[#121212] hover:bg-[#1a1a1a] p-3 rounded-2xl flex items-center gap-3 transition-colors border border-neutral-800/80 text-left group shadow-md"
+        title="Tài khoản & Cài đặt DiNo"
+      >
+        <div
+          className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${
+            user?.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
+          } flex items-center justify-center text-xl shadow-md shrink-0 border border-white/20 group-hover:scale-105 transition-transform`}
+        >
+          {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
+        </div>
+        <div className="flex flex-col min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-white text-xs truncate group-hover:text-amber-400 transition-colors">
+              {user?.name ? user.name.replace(/\s*\(Admin\)/i, '') : (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
+            </span>
+            {user?.isAdmin && (
+              <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
+                ADMIN
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] text-neutral-400 truncate mt-0.5 font-medium">
+            Cài đặt & Hồ sơ
+          </span>
+        </div>
+      </button>
+
       {/* Top Nav Section */}
       <div className="bg-[#121212] rounded-2xl p-3 flex flex-col gap-3">
         {/* KHO LƯU TRỮ */}

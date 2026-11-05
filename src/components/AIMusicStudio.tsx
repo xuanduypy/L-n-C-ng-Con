@@ -25,6 +25,7 @@ import { MusicTrack } from '../types/book';
 interface AIMusicStudioProps {
   onSaveTrackToLibrary: (track: MusicTrack) => void;
   savedTracks?: MusicTrack[];
+  initialTrack?: MusicTrack | null;
 }
 
 const QUICK_PROMPTS = [
@@ -37,15 +38,26 @@ const QUICK_PROMPTS = [
 export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
   onSaveTrackToLibrary,
   savedTracks = [],
+  initialTrack = null,
 }) => {
-  const [prompt, setPrompt] = useState('');
-  const [selectedGenre, setSelectedGenre] = useState<any>('ru_ngu');
+  const [prompt, setPrompt] = useState(initialTrack?.title || '');
+  const [selectedGenre, setSelectedGenre] = useState<any>(initialTrack?.category || 'ru_ngu');
   const [mood, setMood] = useState('êm dịu, ấm áp');
-  const [durationSec, setDurationSec] = useState(30);
-  const [lyrics, setLyrics] = useState('');
+  const [durationSec, setDurationSec] = useState(initialTrack?.durationSec || 30);
+  const [lyrics, setLyrics] = useState(initialTrack?.lyrics || '');
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
   const [isSynthesizing, setIsSynthesizing] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<GeneratedAIMusic | null>(null);
+
+  // Sync initialTrack on Remix
+  useEffect(() => {
+    if (initialTrack) {
+      setPrompt(initialTrack.title);
+      setSelectedGenre(initialTrack.category || 'ru_ngu');
+      if (initialTrack.lyrics) setLyrics(initialTrack.lyrics);
+      if (initialTrack.durationSec) setDurationSec(initialTrack.durationSec);
+    }
+  }, [initialTrack]);
 
   // Player State
   const [isPlaying, setIsPlaying] = useState(false);

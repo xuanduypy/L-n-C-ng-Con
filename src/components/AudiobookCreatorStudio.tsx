@@ -13,6 +13,7 @@ import {
   Plus,
   Sliders,
   ChevronRight,
+  ChevronLeft,
   RotateCcw,
   SkipForward,
   SkipBack,
@@ -74,6 +75,11 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   onOpenVoiceTraining,
   initialBook = null,
 }) => {
+  // Creation Mode State: null shows the 3 options, otherwise shows the editor
+  const [selectedCreationMode, setSelectedCreationMode] = useState<
+    'user-voice' | 'ai-studio' | 'sample-template' | null
+  >(initialBook ? 'ai-studio' : null);
+
   // Input State
   const [bookTitle, setBookTitle] = useState(initialBook?.title || 'Dế Mèn Phiêu Lưu Ký');
   const [bookAuthor, setBookAuthor] = useState(initialBook?.author || 'Tô Hoài');
@@ -113,6 +119,22 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   const [autoAdvanceChapters, setAutoAdvanceChapters] = useState(true);
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [isSynthesizingAudio, setIsSynthesizingAudio] = useState(false);
+
+  // Sync initialBook whenever remix is triggered
+  useEffect(() => {
+    if (initialBook) {
+      setSelectedCreationMode('ai-studio');
+      setBookTitle(initialBook.title);
+      setBookAuthor(initialBook.author);
+      setBookCategory(initialBook.category || 'Văn học');
+      if (initialBook.chapters && initialBook.chapters.length > 0) {
+        setChapters(initialBook.chapters);
+        setRawText(initialBook.chapters[0].content);
+      }
+      setActiveChapterIdx(0);
+      setCurrentSentenceIdx(0);
+    }
+  }, [initialBook]);
 
   // Playback & Sentence Tracker
   const [isPlaying, setIsPlaying] = useState(false);
@@ -476,41 +498,247 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
     alert(`Đã lưu cuốn sách "${newBook.title}" vào Thư Viện của bạn thành công!`);
   };
 
-  return (
-    <div className="space-y-6 max-w-6xl mx-auto text-white">
-      {/* Top Banner Studio Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#242424]">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2.5">
-            <BookOpen className="w-6 h-6 text-[#1ed760]" />
-            <span>Xưởng Tạo Sách Audio</span>
-          </h2>
-          <p className="text-xs text-neutral-400 mt-1">
-            Dán văn bản bất kỳ để chuyển thành sách nói, nghe trực tiếp với câu chữ đồng bộ và tải về tệp âm thanh WAV chất lượng cao.
-          </p>
-        </div>
+  // 1. STEP 1: 3-CHOICE LANDING VIEW (WHEN NO MODE IS SELECTED YET)
+  if (!selectedCreationMode) {
+    return (
+      <div className="h-full overflow-y-auto p-4 sm:p-6 md:p-10 pb-44 md:pb-16 text-white select-none">
+        <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-200">
+          {/* Header Title */}
+          <div className="text-center md:text-left space-y-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-400/15 border border-amber-400/30 text-amber-300 text-xs font-black tracking-wider uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>XƯỞNG TẠO SÁCH AUDIO</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight">
+              Chọn Cách Tạo Sách Audio
+            </h1>
+            <p className="text-xs sm:text-sm text-neutral-400 max-w-2xl leading-relaxed">
+              Chọn phương thức tạo giọng đọc cho cuốn sách của bạn: Dùng giọng nói chính mình, giọng đọc AI diễn cảm, hoặc bắt đầu từ văn bản mẫu có sẵn.
+            </p>
+          </div>
 
-        {/* Action Header Buttons */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          <button
-            onClick={() => handleDownloadAudiobook('chapter')}
-            disabled={isSynthesizingAudio}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 disabled:opacity-50"
-            title="Tải về tệp âm thanh của chương này"
-          >
-            <Download className="w-4 h-4 stroke-[3]" />
-            <span>{isSynthesizingAudio ? 'Đang xuất audio...' : 'Tải Về Audio'}</span>
-          </button>
+          {/* 3 Interactive Option Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+            {/* Lựa chọn 1: Tạo bằng Giọng Người Dùng */}
+            <div
+              onClick={() => {
+                setSelectedCreationMode('user-voice');
+                if (userVoiceProfiles.length > 0) {
+                  setSelectedVoiceId('user_voice');
+                  setSelectedUserProfileId(userVoiceProfiles[0].id);
+                }
+              }}
+              className="group relative p-6 rounded-3xl bg-gradient-to-br from-[#2b1b0b]/90 via-[#191919] to-[#131313] border-2 border-amber-500/40 hover:border-amber-400 cursor-pointer transition-all duration-300 hover:scale-[1.02] shadow-xl hover:shadow-amber-500/10 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 text-neutral-950 font-black flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                    🎙️
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                    Bản sắc riêng
+                  </span>
+                </div>
 
-          <button
-            onClick={handleSaveBook}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#262626] hover:bg-[#323232] text-white font-bold text-xs transition-all border border-[#3e3e3e] active:scale-95"
-          >
-            <Save className="w-4 h-4 text-emerald-400" />
-            <span>Lưu Sách</span>
-          </button>
+                <h3 className="text-lg sm:text-xl font-extrabold text-white group-hover:text-amber-300 transition-colors">
+                  Tạo Bằng Giọng Người Dùng
+                </h3>
+                <p className="text-xs text-neutral-300 mt-2 leading-relaxed">
+                  Sử dụng mẫu giọng đọc của chính ba, mẹ hoặc người thân đã thu âm để kể chuyện cho bé mỗi tối thật tình cảm và ấm áp.
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-neutral-800/80 space-y-2 text-xs text-neutral-300">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Dùng giọng đã thu âm từ phòng thu</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Gần gũi, tình cảm với con trẻ</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>Thu âm thêm mẫu giọng bất cứ lúc nào</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-2">
+                <button
+                  type="button"
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-400 to-amber-500 text-neutral-950 font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 group-hover:from-amber-300 group-hover:to-amber-400 transition-all cursor-pointer"
+                >
+                  <span>Chọn Giọng Người Dùng</span>
+                  <ChevronRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* Lựa chọn 2: Tạo bằng AI Studio */}
+            <div
+              onClick={() => {
+                setSelectedCreationMode('ai-studio');
+                setSelectedVoiceId('vi-diemmy');
+              }}
+              className="group relative p-6 rounded-3xl bg-gradient-to-br from-[#0c261c]/90 via-[#191919] to-[#131313] border-2 border-emerald-500/40 hover:border-emerald-400 cursor-pointer transition-all duration-300 hover:scale-[1.02] shadow-xl hover:shadow-emerald-500/10 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-neutral-950 font-black flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                    🤖
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+                    Truyền cảm
+                  </span>
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-extrabold text-white group-hover:text-emerald-300 transition-colors">
+                  Tạo Bằng AI Studio
+                </h3>
+                <p className="text-xs text-neutral-300 mt-2 leading-relaxed">
+                  Kho giọng đọc AI đa phong cách, ngắt nghỉ đúng ngữ điệu tiếng Việt (Bắc, Trung, Nam) phù hợp với mọi thể loại sách truyện.
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-neutral-800/80 space-y-2 text-xs text-neutral-300">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Giọng Diễm My, Tuấn Hùng, Quỳnh Nga...</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Tự động ngắt nghỉ câu truyền cảm</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>Hòa âm cùng nhạc nền Lo-fi, Mưa rơi</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-2">
+                <button
+                  type="button"
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-400 to-[#1ed760] text-neutral-950 font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 group-hover:from-emerald-300 group-hover:to-emerald-400 transition-all cursor-pointer"
+                >
+                  <span>Chọn Giọng AI Studio</span>
+                  <ChevronRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+
+            {/* Lựa chọn 3: Sách Mẫu & Tải Tệp Lên */}
+            <div
+              onClick={() => {
+                setSelectedCreationMode('sample-template');
+                setSelectedVoiceId('vi-diemmy');
+              }}
+              className="group relative p-6 rounded-3xl bg-gradient-to-br from-[#101d36]/90 via-[#191919] to-[#131313] border-2 border-blue-500/40 hover:border-blue-400 cursor-pointer transition-all duration-300 hover:scale-[1.02] shadow-xl hover:shadow-blue-500/10 flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-indigo-500 text-neutral-950 font-black flex items-center justify-center text-2xl shadow-lg group-hover:scale-110 transition-transform">
+                    📖
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-blue-400/20 text-blue-300 border border-blue-400/30">
+                    Nhanh chóng
+                  </span>
+                </div>
+
+                <h3 className="text-lg sm:text-xl font-extrabold text-white group-hover:text-blue-300 transition-colors">
+                  Sách Mẫu & Tải Tệp Lên
+                </h3>
+                <p className="text-xs text-neutral-300 mt-2 leading-relaxed">
+                  Chọn ngay các tác phẩm thiếu nhi kinh điển (Dế Mèn, Cổ tích, Ngụ ngôn) hoặc tải trực tiếp file văn bản có sẵn trên máy của bạn.
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-neutral-800/80 space-y-2 text-xs text-neutral-300">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>Tải tệp văn bản (.txt) nhanh gọn</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>Nạp sẵn truyện thiếu nhi chọn lọc</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>AI tự động chia chương hồi thông minh</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-2">
+                <button
+                  type="button"
+                  className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-400 to-indigo-500 text-neutral-950 font-black text-xs uppercase tracking-wider shadow-lg flex items-center justify-center gap-2 group-hover:from-blue-300 group-hover:to-blue-400 transition-all cursor-pointer"
+                >
+                  <span>Chọn Sách Mẫu & Tải Lên</span>
+                  <ChevronRight className="w-4 h-4 stroke-[3] group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    );
+  }
+
+  // 2. STEP 2: CREATION FORM (AFTER SELECTING MODE)
+  return (
+    <div className="h-full overflow-y-auto p-3 sm:p-6 md:p-8 pb-44 md:pb-16 text-white select-none">
+      <div className="space-y-6 max-w-6xl mx-auto">
+        {/* Top Banner Studio Header with Back Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#242424]">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSelectedCreationMode(null)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#242424] hover:bg-[#323232] text-xs font-bold text-neutral-200 hover:text-white transition-all active:scale-95 border border-neutral-700 shadow"
+              title="Quay lại chọn phương thức khác"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Đổi cách tạo</span>
+            </button>
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                  <span>Xưởng Tạo Sách Audio</span>
+                </h2>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  {selectedCreationMode === 'user-voice'
+                    ? '🎙️ Giọng Người Dùng'
+                    : selectedCreationMode === 'ai-studio'
+                    ? '🤖 Giọng AI Studio'
+                    : '📖 Sách Mẫu & Tải File'}
+                </span>
+              </div>
+              <p className="text-xs text-neutral-400 mt-0.5 hidden sm:block">
+                Điền thông tin sách, dán văn bản và nghe thử giọng đọc đồng bộ từng câu.
+              </p>
+            </div>
+          </div>
+
+          {/* Action Header Buttons */}
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={() => handleDownloadAudiobook('chapter')}
+              disabled={isSynthesizingAudio}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer"
+              title="Tải về tệp âm thanh của chương này"
+            >
+              <Download className="w-4 h-4 stroke-[3]" />
+              <span>{isSynthesizingAudio ? 'Đang xuất audio...' : 'Tải Về Audio'}</span>
+            </button>
+
+            <button
+              onClick={handleSaveBook}
+              className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#262626] hover:bg-[#323232] text-white font-bold text-xs transition-all border border-[#3e3e3e] active:scale-95 cursor-pointer"
+            >
+              <Save className="w-4 h-4 text-emerald-400" />
+              <span>Lưu Sách</span>
+            </button>
+          </div>
+        </div>
 
       {/* Main Studio Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -639,6 +867,29 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                 </button>
               )}
             </div>
+
+            {/* If user-voice mode is selected and no profiles exist yet, show friendly prompt */}
+            {selectedCreationMode === 'user-voice' && userVoiceProfiles.length === 0 && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl p-2 rounded-xl bg-amber-400 text-black shrink-0">🎙️</span>
+                  <div>
+                    <h4 className="text-xs font-bold text-amber-300">Chưa có mẫu giọng thu âm nào</h4>
+                    <p className="text-[11px] text-neutral-300 mt-0.5">
+                      Ghi âm giọng của ba hoặc mẹ trong 30 giây để AI huấn luyện và đọc sách bằng chính giọng của bạn.
+                    </p>
+                  </div>
+                </div>
+                {onOpenVoiceTraining && (
+                  <button
+                    onClick={onOpenVoiceTraining}
+                    className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow shrink-0 active:scale-95 cursor-pointer"
+                  >
+                    Thu âm giọng ngay
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Presets Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -932,5 +1183,6 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
         </div>
       </div>
     </div>
+  </div>
   );
 };

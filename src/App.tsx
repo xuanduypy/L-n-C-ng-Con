@@ -76,6 +76,8 @@ export default function App() {
   const [targetBookForChapter, setTargetBookForChapter] = useState<Book | null>(null);
   const [isVoiceSettingsOpen, setIsVoiceSettingsOpen] = useState<boolean>(false);
   const [isUserAccountOpen, setIsUserAccountOpen] = useState<boolean>(false);
+  const [remixBook, setRemixBook] = useState<Book | null>(null);
+  const [remixTrack, setRemixTrack] = useState<MusicTrack | null>(null);
 
   // 5. Audio Hooks (Books & Music)
   const bookAudio = useBookAudioPlayer(books);
@@ -344,6 +346,23 @@ export default function App() {
     [bookAudio, books, musicAudio.tracks, userSync]
   );
 
+  // Remix Handlers for Books and Music
+  const handleRemixBook = useCallback(
+    (book: Book) => {
+      setRemixBook(book);
+      navigateTo('audiobook-studio');
+    },
+    [navigateTo]
+  );
+
+  const handleRemixTrack = useCallback(
+    (track: MusicTrack) => {
+      setRemixTrack(track);
+      navigateTo('aimusic-studio');
+    },
+    [navigateTo]
+  );
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-black text-[#ffffff] font-sans antialiased selection:bg-[#1ed760] selection:text-black">
       {/* Top PWA Banner */}
@@ -404,6 +423,7 @@ export default function App() {
             {/* 1. AUDIOBOOK CREATOR STUDIO (Tạo Sách Audio) */}
             {currentView === 'audiobook-studio' && (
               <AudiobookCreatorStudio
+                initialBook={remixBook}
                 userVoiceProfiles={bookAudio.voiceSettings.userProfiles || []}
                 onSaveBookToLibrary={(newBook: Book) => {
                   handleAddBook(newBook);
@@ -415,6 +435,7 @@ export default function App() {
             {/* 2. AI MUSIC GENERATOR STUDIO (Tạo Nhạc AI) */}
             {currentView === 'aimusic-studio' && (
               <AIMusicStudio
+                initialTrack={remixTrack}
                 onSaveTrackToLibrary={(newTrack: MusicTrack) => {
                   musicAudio.addCustomTrack(newTrack);
                   handlePlayTrack(newTrack);
@@ -465,6 +486,11 @@ export default function App() {
                 onNavigateAudiobook={() => navigateTo('audiobook-studio')}
                 onNavigateAIMusic={() => navigateTo('aimusic-studio')}
                 onNavigateVoiceTraining={() => navigateTo('voice-training')}
+                onRemixBook={handleRemixBook}
+                onRemixTrack={handleRemixTrack}
+                onDeleteBook={handleDeleteBook}
+                onDeleteTrack={handleDeleteTrack}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -481,6 +507,9 @@ export default function App() {
                   setIsAddModalOpen(true);
                 }}
                 onToggleFavorite={handleToggleFavorite}
+                onRemixBook={handleRemixBook}
+                onDeleteBook={handleDeleteBook}
+                isAdmin={isAdmin}
               />
             )}
 
@@ -510,6 +539,7 @@ export default function App() {
                 }}
                 onDeleteBook={handleDeleteBook}
                 onDeleteChapter={handleDeleteChapter}
+                onRemixBook={handleRemixBook}
               />
             )}
 
@@ -533,6 +563,7 @@ export default function App() {
                 onDeleteTrack={handleDeleteTrack}
                 onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
                 onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
+                onRemixTrack={handleRemixTrack}
               />
             )}
           </div>
