@@ -284,8 +284,9 @@ export const UserVoiceTrainingStudio: React.FC<UserVoiceTrainingStudioProps> = (
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto text-white">
-      {/* Studio Header */}
+    <div className="h-full overflow-y-auto p-3 sm:p-6 md:p-8 pb-24 md:pb-12 text-white select-none">
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Studio Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#242424]">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2">
@@ -526,5 +527,6 @@ export const UserVoiceTrainingStudio: React.FC<UserVoiceTrainingStudioProps> = (
         </div>
       </div>
     </div>
+  </div>
   );
 };

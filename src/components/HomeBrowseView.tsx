@@ -76,10 +76,11 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
           c.title.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
+      const isMusicCategory = selectedCategory.toLowerCase().includes('nhạc');
+      if (isMusicCategory) return false;
+
       let matchCategory = true;
-      if (selectedCategory === 'Sách nói') matchCategory = true;
-      else if (selectedCategory === 'Kho Nhạc') matchCategory = false;
-      else if (selectedCategory !== 'Tất cả') {
+      if (selectedCategory !== 'Tất cả' && selectedCategory !== 'Kho sách') {
         matchCategory = b.category.toLowerCase().includes(selectedCategory.toLowerCase());
       }
 
@@ -194,7 +195,7 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
       )}
 
       {/* 🎵 SPOTIFY MUSIC SHELF: Kho Nhạc Thiếu Nhi & Gia Đình */}
-      {(selectedCategory === 'Tất cả' || selectedCategory === 'Kho Nhạc') && tracks.length > 0 && (
+      {!selectedCategory.toLowerCase().includes('sách') && tracks.length > 0 && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -308,8 +309,8 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
         </section>
       )}
 
-      {/* Custom User Books Shelf (Thêm bằng văn bản) */}
-      {selectedCategory !== 'Kho Nhạc' && (
+      {/* Custom User Books Shelf (Thêm bằng văn bản) - Ẩn hoàn toàn khi xem Kho Nhạc */}
+      {!selectedCategory.toLowerCase().includes('nhạc') && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -357,8 +358,8 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
         </section>
       )}
 
-      {/* Main Filtered / Curated Books Grid */}
-      {selectedCategory !== 'Kho Nhạc' && (
+      {/* Main Filtered / Curated Books Grid - Ẩn hoàn toàn khi xem Kho Nhạc */}
+      {!selectedCategory.toLowerCase().includes('nhạc') && (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>

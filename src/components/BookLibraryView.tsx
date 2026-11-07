@@ -21,7 +21,7 @@ interface BookLibraryViewProps {
   isPlaying: boolean;
   onSelectBook: (book: Book) => void;
   onPlayBook: (book: Book) => void;
-  onOpenAddModal: () => void;
+  onOpenAddModal?: () => void;
   onToggleFavorite: (bookId: string) => void;
   onRemixBook?: (book: Book) => void;
   onDeleteBook?: (bookId: string) => void;
@@ -119,19 +119,8 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
       {/* 2. Action Controls Bar */}
       <div className="px-4 md:px-8 py-3 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {/* Add Book Button */}
-            <button
-              onClick={onOpenAddModal}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all active:scale-95 shadow"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" />
-              <span>Thêm sách bằng văn bản</span>
-            </button>
-          </div>
-
           {/* Quick Search in Books */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full sm:w-72">
             <input
               type="text"
               value={searchQuery}
@@ -186,7 +175,7 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
             <BookOpen className="w-12 h-12 mx-auto text-neutral-600" />
             <p className="font-semibold text-base text-white">Chưa tìm thấy sách phù hợp</p>
             <p className="text-xs text-neutral-400">
-              Hãy bấm nút <strong>"Thêm sách bằng văn bản"</strong> để tạo sách nói bằng giọng của chính bạn!
+              Hãy thử tìm kiếm từ khóa khác hoặc chuyển sang mục <strong>"Tạo Sách Audio"</strong> để tạo thêm sách mới!
             </p>
           </div>
         ) : (

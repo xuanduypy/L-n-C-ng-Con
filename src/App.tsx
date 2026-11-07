@@ -134,6 +134,15 @@ export default function App() {
   // Navigation handlers
   const navigateTo = useCallback(
     (view: ViewMode, book?: Book | null) => {
+      // If entering a studio view (tạo nhạc, tạo sách, huấn luyện giọng), pause background playback to prevent audio conflict
+      if (
+        view === 'audiobook-studio' ||
+        view === 'aimusic-studio' ||
+        view === 'voice-training'
+      ) {
+        if (bookAudio.isPlaying) bookAudio.pause();
+        if (musicAudio.isPlayingMusic) musicAudio.pauseMusic();
+      }
       setCurrentView(view);
       if (book !== undefined) {
         setSelectedBook(book);
@@ -141,7 +150,7 @@ export default function App() {
       setHistoryStack((prev) => [...prev.slice(0, historyIndex + 1), view]);
       setHistoryIndex((prev) => prev + 1);
     },
-    [historyIndex]
+    [historyIndex, bookAudio, musicAudio]
   );
 
   const handleNavigateBack = useCallback(() => {
@@ -363,6 +372,11 @@ export default function App() {
     [navigateTo]
   );
 
+  const isStudioView =
+    currentView === 'audiobook-studio' ||
+    currentView === 'aimusic-studio' ||
+    currentView === 'voice-training';
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-black text-[#ffffff] font-sans antialiased selection:bg-[#1ed760] selection:text-black">
       {/* Top PWA Banner */}
@@ -568,62 +582,64 @@ export default function App() {
             )}
           </div>
 
-          {/* Sticky Bottom Player Bar (Dual Spotify Player for Book & Music) - Giới hạn bên trong main, không lấn sang sidebar */}
-          <SpotifyBottomPlayer
-            playbackMode={playbackMode}
-            currentBook={bookAudio.currentBook}
-            currentChapter={bookAudio.currentChapter}
-            isPlayingBook={bookAudio.isPlaying}
-            onTogglePlayBook={() => {
-              setPlaybackMode('book');
-              musicAudio.pauseMusic();
-              bookAudio.togglePlay();
-            }}
-            onNextChapter={bookAudio.nextChapter}
-            onPrevChapter={bookAudio.prevChapter}
-            onRewindBook={bookAudio.rewind}
-            onForwardBook={bookAudio.forward}
-            onSeekSentence={bookAudio.seekToSentence}
-            currentSentenceIndex={bookAudio.currentSentenceIndex}
-            totalSentences={bookAudio.sentences.length}
-            bookProgressPercent={bookAudio.progressPercent}
-            bookCurrentTimeSec={bookAudio.currentTimeSec}
-            bookTotalDurationSec={bookAudio.totalDurationSec}
-            isReaderOpen={isReaderOpen}
-            onToggleReader={() => setIsReaderOpen((prev) => !prev)}
-            onToggleFavoriteBook={handleToggleFavorite}
-            onOpenBookDetail={(b) => handleSelectBook(b)}
-            currentTrack={musicAudio.currentTrack}
-            isPlayingMusic={musicAudio.isPlayingMusic}
-            onTogglePlayMusic={() => {
-              setPlaybackMode('music');
-              bookAudio.pause();
-              musicAudio.togglePlayMusic();
-            }}
-            onNextTrack={musicAudio.nextTrack}
-            onPrevTrack={musicAudio.prevTrack}
-            onSeekTrack={musicAudio.seekTrack}
-            musicCurrentTimeSec={musicAudio.currentTimeSec}
-            musicDurationSec={musicAudio.durationSec}
-            isShuffle={musicAudio.isShuffle}
-            loopMode={musicAudio.loopMode}
-            onToggleShuffle={musicAudio.toggleShuffle}
-            onToggleLoop={musicAudio.toggleLoop}
-            onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
-            onOpenMusicLyrics={(track) => setSelectedTrackForLyrics(track)}
-            playbackRate={bookAudio.playbackRate}
-            volume={bookAudio.volume}
-            isMuted={bookAudio.isMuted}
-            onSetSpeed={(s: PlaybackSpeed) => bookAudio.setSpeed(s)}
-            onSetVolume={(v: number) => {
-              bookAudio.setVolume(v);
-            }}
-            onToggleMute={bookAudio.toggleMute}
-            sleepTimerOption={sleepTimer.timerOption}
-            sleepTimerFormatted={sleepTimer.formattedTime}
-            onSetSleepTimer={sleepTimer.setTimer}
-            isSleepTimerActive={sleepTimer.isActive}
-          />
+          {/* Sticky Bottom Player Bar (Dual Spotify Player for Book & Music) - Ẩn hoàn toàn khi vào tạo sách, tạo nhạc, huấn luyện giọng để không vướng màn hình */}
+          {!isStudioView && (
+            <SpotifyBottomPlayer
+              playbackMode={playbackMode}
+              currentBook={bookAudio.currentBook}
+              currentChapter={bookAudio.currentChapter}
+              isPlayingBook={bookAudio.isPlaying}
+              onTogglePlayBook={() => {
+                setPlaybackMode('book');
+                musicAudio.pauseMusic();
+                bookAudio.togglePlay();
+              }}
+              onNextChapter={bookAudio.nextChapter}
+              onPrevChapter={bookAudio.prevChapter}
+              onRewindBook={bookAudio.rewind}
+              onForwardBook={bookAudio.forward}
+              onSeekSentence={bookAudio.seekToSentence}
+              currentSentenceIndex={bookAudio.currentSentenceIndex}
+              totalSentences={bookAudio.sentences.length}
+              bookProgressPercent={bookAudio.progressPercent}
+              bookCurrentTimeSec={bookAudio.currentTimeSec}
+              bookTotalDurationSec={bookAudio.totalDurationSec}
+              isReaderOpen={isReaderOpen}
+              onToggleReader={() => setIsReaderOpen((prev) => !prev)}
+              onToggleFavoriteBook={handleToggleFavorite}
+              onOpenBookDetail={(b) => handleSelectBook(b)}
+              currentTrack={musicAudio.currentTrack}
+              isPlayingMusic={musicAudio.isPlayingMusic}
+              onTogglePlayMusic={() => {
+                setPlaybackMode('music');
+                bookAudio.pause();
+                musicAudio.togglePlayMusic();
+              }}
+              onNextTrack={musicAudio.nextTrack}
+              onPrevTrack={musicAudio.prevTrack}
+              onSeekTrack={musicAudio.seekTrack}
+              musicCurrentTimeSec={musicAudio.currentTimeSec}
+              musicDurationSec={musicAudio.durationSec}
+              isShuffle={musicAudio.isShuffle}
+              loopMode={musicAudio.loopMode}
+              onToggleShuffle={musicAudio.toggleShuffle}
+              onToggleLoop={musicAudio.toggleLoop}
+              onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
+              onOpenMusicLyrics={(track) => setSelectedTrackForLyrics(track)}
+              playbackRate={bookAudio.playbackRate}
+              volume={bookAudio.volume}
+              isMuted={bookAudio.isMuted}
+              onSetSpeed={(s: PlaybackSpeed) => bookAudio.setSpeed(s)}
+              onSetVolume={(v: number) => {
+                bookAudio.setVolume(v);
+              }}
+              onToggleMute={bookAudio.toggleMute}
+              sleepTimerOption={sleepTimer.timerOption}
+              sleepTimerFormatted={sleepTimer.formattedTime}
+              onSetSleepTimer={sleepTimer.setTimer}
+              isSleepTimerActive={sleepTimer.isActive}
+            />
+          )}
         </main>
       </div>
 
