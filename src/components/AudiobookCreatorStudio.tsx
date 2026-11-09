@@ -36,6 +36,7 @@ import {
   audioBufferToWav,
   downloadAudioBlob,
 } from '../utils/audioExporter';
+import { storeAudioBlob } from '../utils/audioVault';
 import { splitIntoSentences, formatTime } from '../utils/textParser';
 
 interface AudiobookCreatorStudioProps {
@@ -846,9 +847,19 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
       return;
     }
 
-    const currentChaps = chapters.length > 0 ? chapters : [activeChapter];
+    const bookId = `custom-${Date.now()}`;
+    let savedAudioUrl: string | undefined = undefined;
+    if (generatedAudioBlob) {
+      storeAudioBlob(bookId, generatedAudioBlob);
+      savedAudioUrl = URL.createObjectURL(generatedAudioBlob);
+    }
+
+    const currentChaps = (chapters.length > 0 ? chapters : [activeChapter]).map((c, i) =>
+      i === 0 && savedAudioUrl ? { ...c, audioUrl: savedAudioUrl } : c
+    );
+
     const newBook: Book = {
-      id: `custom-${Date.now()}`,
+      id: bookId,
       title: bookTitle.trim() || 'Tác Phẩm Sách Nói Mới',
       author: bookAuthor.trim() || 'Tác Giả Tự Do',
       category: bookCategory.trim() || 'Sách nói văn bản',

@@ -645,13 +645,17 @@ export default function App() {
               onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
               onOpenMusicLyrics={(track) => setSelectedTrackForLyrics(track)}
               playbackRate={bookAudio.playbackRate}
-              volume={bookAudio.volume}
-              isMuted={bookAudio.isMuted}
+              volume={playbackMode === 'music' ? musicAudio.volume : bookAudio.volume}
+              isMuted={playbackMode === 'music' ? musicAudio.isMuted : bookAudio.isMuted}
               onSetSpeed={(s: PlaybackSpeed) => bookAudio.setSpeed(s)}
               onSetVolume={(v: number) => {
                 bookAudio.setVolume(v);
+                musicAudio.setVolume(v);
               }}
-              onToggleMute={bookAudio.toggleMute}
+              onToggleMute={() => {
+                bookAudio.toggleMute();
+                musicAudio.toggleMute();
+              }}
               sleepTimerOption={sleepTimer.timerOption}
               sleepTimerFormatted={sleepTimer.formattedTime}
               onSetSleepTimer={sleepTimer.setTimer}

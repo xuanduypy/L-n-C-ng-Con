@@ -24,6 +24,7 @@ import {
   GeneratedAIMusic,
 } from '../utils/aiMusicEngine';
 import { downloadAudioBlob } from '../utils/audioExporter';
+import { storeAudioBlob } from '../utils/audioVault';
 import { MusicTrack } from '../types/book';
 
 interface AIMusicStudioProps {
@@ -274,6 +275,9 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
       return;
     }
 
+    // Persist to IndexedDB vault so it never expires
+    storeAudioBlob(currentTrack.id, currentTrack.audioBlob);
+
     const newMusicTrack: MusicTrack = {
       id: currentTrack.id,
       title: currentTrack.title,
@@ -284,6 +288,7 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
       durationSec: currentTrack.durationSec,
       lyrics: currentTrack.lyrics,
       isCustom: true,
+      hasBlobInVault: true,
       createdAt: Date.now(),
       albumTitle: 'Sáng Tác AI Suno',
     };

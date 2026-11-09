@@ -1,37 +1,52 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { MusicTrack } from '../types/book';
 import { INITIAL_MUSIC_TRACKS } from '../data/initialMusicTracks';
+import { getAudioObjectUrl, deleteAudioBlob } from '../utils/audioVault';
 
 const STORAGE_MUSIC_KEY = 'audiobookify_music_tracks';
 const STORAGE_LAST_TRACK_KEY = 'audiobookify_last_track_id';
+const STORAGE_VOLUME_KEY = 'audiobookify_player_volume';
+const STORAGE_MUTED_KEY = 'audiobookify_player_muted';
 
 const NOTE_FREQS: Record<string, number> = {
-  C4: 261.63,
-  D4: 293.66,
-  E4: 329.63,
-  F4: 349.23,
-  G4: 392.0,
-  A4: 440.0,
-  B4: 493.88,
-  C5: 523.25,
-  D5: 587.33,
-  E5: 659.25,
-  F5: 698.46,
-  G5: 783.99,
-  A5: 880.0,
+  C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.0, A3: 220.0, B3: 246.94,
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.0, A4: 440.0, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.0, B5: 987.77,
+  C6: 1046.5, D6: 1174.66, E6: 1318.51, G6: 1567.98,
   REST: 0,
 };
 
 let audioCtx: AudioContext | null = null;
-function getAudioContext(): AudioContext {
+let compressorNode: DynamicsCompressorNode | null = null;
+let masterGainNode: GainNode | null = null;
+
+function getAudioContext(): { ctx: AudioContext; compressor: DynamicsCompressorNode; masterGain: GainNode } {
   if (!audioCtx) {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     audioCtx = new AudioContextClass();
+
+    // Studio Dynamics Compressor: Prevents clipping, balances loudness
+    compressorNode = audioCtx.createDynamicsCompressor();
+    compressorNode.threshold.setValueAtTime(-18, audioCtx.currentTime);
+    compressorNode.knee.setValueAtTime(12, audioCtx.currentTime);
+    compressorNode.ratio.setValueAtTime(3.5, audioCtx.currentTime);
+    compressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
+    compressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+    // Master Gain
+    masterGainNode = audioCtx.createGain();
+    masterGainNode.gain.setValueAtTime(0.85, audioCtx.currentTime);
+
+    // Audio Graph: Compressor -> MasterGain -> Destination
+    compressorNode.connect(masterGainNode);
+    masterGainNode.connect(audioCtx.destination);
   }
+
   if (audioCtx.state === 'suspended') {
     audioCtx.resume();
   }
-  return audioCtx;
+
+  return { ctx: audioCtx, compressor: compressorNode!, masterGain: masterGainNode! };
 }
 
 export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
@@ -41,25 +56,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Sanitize: expired blob URLs cannot be decoded after page reload
-          return parsed.map((t: MusicTrack) => {
-            if (t.audioUrl && typeof t.audioUrl === 'string' && t.audioUrl.startsWith('blob:')) {
-              return {
-                ...t,
-                audioUrl: undefined,
-                notes:
-                  t.notes && t.notes.length > 0
-                    ? t.notes
-                    : [
-                        { note: 'C4', duration: 0.4 },
-                        { note: 'E4', duration: 0.4 },
-                        { note: 'G4', duration: 0.6 },
-                        { note: 'C5', duration: 0.8 },
-                      ],
-              };
-            }
-            return t;
-          });
+          return parsed;
         }
       }
     } catch (e) {
@@ -75,6 +72,23 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [loopMode, setLoopMode] = useState<'off' | 'track' | 'all'>('all');
 
+  // Volume & Mute state
+  const [volume, setVolumeState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_VOLUME_KEY);
+      if (saved) return Math.max(0, Math.min(1, parseFloat(saved)));
+    } catch {}
+    return 0.85;
+  });
+
+  const [isMuted, setIsMuted] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_MUTED_KEY);
+      if (saved) return saved === 'true';
+    } catch {}
+    return false;
+  });
+
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const synthTimeoutsRef = useRef<any[]>([]);
   const synthProgressIntervalRef = useRef<any>(null);
@@ -83,6 +97,8 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
   const tracksRef = useRef<MusicTrack[]>(tracks);
   const isShuffleRef = useRef<boolean>(isShuffle);
   const loopModeRef = useRef<'off' | 'track' | 'all'>(loopMode);
+  const volumeRef = useRef<number>(volume);
+  const isMutedRef = useRef<boolean>(isMuted);
   const shuffleHistoryRef = useRef<string[]>([]);
   const handleNextTrackRef = useRef<() => void>(() => {});
 
@@ -107,14 +123,116 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     loopModeRef.current = loopMode;
   }, [loopMode]);
 
-  // Persist tracks
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // Hydrate custom tracks from IndexedDB vault on mount
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function hydrateVaultAudio() {
+      const updated = await Promise.all(
+        tracks.map(async (t) => {
+          if (t.hasBlobInVault || t.id.startsWith('custom-')) {
+            const vaultUrl = await getAudioObjectUrl(t.id);
+            if (vaultUrl) {
+              return { ...t, audioUrl: vaultUrl, hasBlobInVault: true };
+            }
+          }
+          return t;
+        })
+      );
+
+      if (!isCancelled) {
+        setTracks(updated);
+      }
+    }
+
+    hydrateVaultAudio();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  // Persist tracks safely (Strip large base64 or temporary blobs to prevent QuotaExceededError)
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_MUSIC_KEY, JSON.stringify(tracks));
+      const serialized = tracks.map((t) => {
+        // If track has audio in IndexedDB vault, omit audioUrl from localStorage JSON
+        if (t.hasBlobInVault) {
+          return {
+            ...t,
+            audioUrl: undefined,
+          };
+        }
+        // If track has a large base64 string (> 200KB), omit to protect localStorage
+        if (t.audioUrl && t.audioUrl.startsWith('data:') && t.audioUrl.length > 200000) {
+          return {
+            ...t,
+            audioUrl: undefined,
+          };
+        }
+        return t;
+      });
+
+      localStorage.setItem(STORAGE_MUSIC_KEY, JSON.stringify(serialized));
     } catch (e) {
-      console.warn('Failed to save music tracks:', e);
+      console.warn('Failed to save music tracks to localStorage:', e);
     }
   }, [tracks]);
+
+  // Set Volume
+  const setVolume = useCallback((newVol: number) => {
+    const clamped = Math.max(0, Math.min(1, newVol));
+    setVolumeState(clamped);
+    volumeRef.current = clamped;
+
+    try {
+      localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString());
+    } catch {}
+
+    const effectiveVol = isMutedRef.current ? 0 : clamped;
+
+    if (audioElementRef.current) {
+      audioElementRef.current.volume = effectiveVol;
+      audioElementRef.current.muted = isMutedRef.current;
+    }
+
+    if (masterGainNode && audioCtx) {
+      masterGainNode.gain.setValueAtTime(effectiveVol, audioCtx.currentTime);
+    }
+  }, []);
+
+  // Toggle Mute
+  const toggleMute = useCallback(() => {
+    setIsMuted((prev) => {
+      const next = !prev;
+      isMutedRef.current = next;
+
+      try {
+        localStorage.setItem(STORAGE_MUTED_KEY, next ? 'true' : 'false');
+      } catch {}
+
+      const effectiveVol = next ? 0 : volumeRef.current;
+
+      if (audioElementRef.current) {
+        audioElementRef.current.muted = next;
+        audioElementRef.current.volume = effectiveVol;
+      }
+
+      if (masterGainNode && audioCtx) {
+        masterGainNode.gain.setValueAtTime(effectiveVol, audioCtx.currentTime);
+      }
+
+      return next;
+    });
+  }, []);
 
   // Restore last track
   useEffect(() => {
@@ -130,7 +248,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     } catch {}
   }, [tracks, currentTrack]);
 
-  // Stop active music (both audio element and synthesized notes)
+  // Stop active music (both audio element and synthesized notes) with gentle release
   const stopAllAudio = useCallback(() => {
     if (audioElementRef.current) {
       try {
@@ -147,14 +265,14 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     }
   }, []);
 
-  // Play synthesized melody using Web Audio API
+  // Play synthesized melody using Web Audio API with Acoustic Chime Warmth
   const playSynthesizedTrack = useCallback(
     (track: MusicTrack, startFromSec: number = 0) => {
       stopAllAudio();
       const notes = track.notes || [];
       if (notes.length === 0) return;
 
-      const ctx = getAudioContext();
+      const { ctx, compressor } = getAudioContext();
       setIsPlayingMusic(true);
       isPlayingRef.current = true;
       setCurrentTimeSec(startFromSec);
@@ -177,6 +295,8 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
         }
       }, 500);
 
+      const effectiveVolume = isMutedRef.current ? 0 : volumeRef.current;
+
       let accumulated = 0;
       notes.forEach((item) => {
         const noteStartTime = accumulated;
@@ -190,23 +310,32 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
           const freq = NOTE_FREQS[item.note] || 0;
           if (freq > 0) {
             try {
-              const osc = ctx.createOscillator();
-              const gain = ctx.createGain();
+              // Fundamental Tone (Warm sine/triangle)
+              const osc1 = ctx.createOscillator();
+              const osc2 = ctx.createOscillator(); // 2nd harmonic overtone for acoustic body
+              const noteGain = ctx.createGain();
 
-              // Warm xylophone/bell sound for kids
-              osc.type = 'triangle';
-              osc.frequency.setValueAtTime(freq, ctx.currentTime);
+              osc1.type = 'triangle';
+              osc1.frequency.setValueAtTime(freq, ctx.currentTime);
 
-              gain.gain.setValueAtTime(0.25, ctx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + item.duration * 0.95);
+              osc2.type = 'sine';
+              osc2.frequency.setValueAtTime(freq * 2, ctx.currentTime);
 
-              osc.connect(gain);
-              gain.connect(ctx.destination);
+              const peakGain = 0.22 * effectiveVolume;
+              noteGain.gain.setValueAtTime(0.001, ctx.currentTime);
+              noteGain.gain.linearRampToValueAtTime(peakGain, ctx.currentTime + 0.02);
+              noteGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + item.duration * 0.95);
 
-              osc.start();
-              osc.stop(ctx.currentTime + item.duration);
+              osc1.connect(noteGain);
+              osc2.connect(noteGain);
+              noteGain.connect(compressor);
+
+              osc1.start();
+              osc2.start();
+              osc1.stop(ctx.currentTime + item.duration);
+              osc2.stop(ctx.currentTime + item.duration);
             } catch (err) {
-              console.warn('Synth error:', err);
+              console.warn('Synth note error:', err);
             }
           }
         }, delay * 1000);
@@ -217,11 +346,23 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     [stopAllAudio]
   );
 
-  // Play audio file track with robust source error handling & synthesizer fallback
+  // Play audio file track with robust source error handling & recovery
   const playAudioFileTrack = useCallback(
-    (track: MusicTrack, startFromSec: number = 0) => {
+    async (track: MusicTrack, startFromSec: number = 0) => {
       stopAllAudio();
-      if (!track.audioUrl || typeof track.audioUrl !== 'string' || !track.audioUrl.trim()) {
+
+      let activeUrl = track.audioUrl;
+
+      // If audioUrl is missing or track is in vault, retrieve fresh object URL
+      if (!activeUrl || track.hasBlobInVault || track.id.startsWith('custom-')) {
+        const vaultUrl = await getAudioObjectUrl(track.id);
+        if (vaultUrl) {
+          activeUrl = vaultUrl;
+          track.audioUrl = vaultUrl;
+        }
+      }
+
+      if (!activeUrl || typeof activeUrl !== 'string' || !activeUrl.trim()) {
         if (track.notes && track.notes.length > 0) {
           playSynthesizedTrack(track, startFromSec);
         }
@@ -231,15 +372,29 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
       try {
         const audio = new Audio();
         audioElementRef.current = audio;
-        audio.preload = 'metadata';
+        audio.preload = 'auto';
+
+        const effectiveVolume = isMutedRef.current ? 0 : volumeRef.current;
+        audio.volume = effectiveVolume;
+        audio.muted = isMutedRef.current;
 
         // Error handling attached BEFORE setting src
-        audio.onerror = (e) => {
+        audio.onerror = async (e) => {
           if (typeof e !== 'string') e?.preventDefault?.();
-          console.warn('Audio source error, transitioning to synth melody:', track.title);
+          console.warn('Audio source load error, attempting vault recovery:', track.title);
+
+          // Try refreshing from vault
+          const recoveredUrl = await getAudioObjectUrl(track.id);
+          if (recoveredUrl && recoveredUrl !== activeUrl) {
+            track.audioUrl = recoveredUrl;
+            playAudioFileTrack(track, startFromSec);
+            return;
+          }
+
           if (audioElementRef.current === audio) {
             audioElementRef.current = null;
           }
+
           if (track.notes && track.notes.length > 0) {
             playSynthesizedTrack(track, 0);
           } else {
@@ -271,7 +426,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
         };
 
         // Assign source
-        audio.src = track.audioUrl;
+        audio.src = activeUrl;
         setCurrentTimeSec(startFromSec);
 
         const playPromise = audio.play();
@@ -328,7 +483,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
         localStorage.setItem(STORAGE_LAST_TRACK_KEY, track.id);
       } catch {}
 
-      if (track.audioUrl) {
+      if (track.audioUrl || track.hasBlobInVault || track.id.startsWith('custom-')) {
         playAudioFileTrack(track, 0);
       } else if (track.notes && track.notes.length > 0) {
         playSynthesizedTrack(track, 0);
@@ -363,7 +518,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
       return;
     }
     onMusicPlayStart?.();
-    if (currentTrack.audioUrl) {
+    if (currentTrack.audioUrl || currentTrack.hasBlobInVault || currentTrack.id.startsWith('custom-')) {
       if (audioElementRef.current) {
         audioElementRef.current
           .play()
@@ -401,28 +556,23 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
 
     if (isShuffleRef.current) {
       const currentId = currentTrackRef.current?.id;
-      // All tracks other than current track that haven't been played in this shuffle cycle
       let candidates = allTracks.filter(
         (t) => t.id !== currentId && !shuffleHistoryRef.current.includes(t.id)
       );
 
-      // If all tracks have been played in this cycle, reset history and choose from all other tracks
       if (candidates.length === 0) {
         shuffleHistoryRef.current = currentId ? [currentId] : [];
         candidates = allTracks.filter((t) => t.id !== currentId);
       }
 
-      // If still empty (e.g. edge cases), fallback to allTracks
       if (candidates.length === 0) {
         candidates = allTracks;
       }
 
-      // Pick randomly from candidate tracks
       const randomIndex = Math.floor(Math.random() * candidates.length);
       const chosenTrack = candidates[randomIndex];
       playTrack(chosenTrack);
     } else {
-      // Sequential playback
       const currentId = currentTrackRef.current?.id;
       const idx = allTracks.findIndex((t) => t.id === currentId);
       let nextIndex = 0;
@@ -430,7 +580,6 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
         if (idx + 1 < allTracks.length) {
           nextIndex = idx + 1;
         } else {
-          // Reached end of playlist
           if (loopModeRef.current === 'off') {
             stopAllAudio();
             setIsPlayingMusic(false);
@@ -443,7 +592,6 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     }
   }, [playTrack, stopAllAudio]);
 
-  // Keep handleNextTrackRef in sync
   useEffect(() => {
     handleNextTrackRef.current = handleNextTrack;
   }, [handleNextTrack]);
@@ -454,16 +602,14 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     if (allTracks.length === 0) return;
 
     if (currentTimeSec > 3) {
-      // If played more than 3s, restart current track
       if (currentTrackRef.current) {
         playTrack(currentTrackRef.current);
       }
       return;
     }
 
-    // In shuffle mode, if we have history, go to previously played song
     if (isShuffleRef.current && shuffleHistoryRef.current.length > 1) {
-      shuffleHistoryRef.current.pop(); // Remove current song
+      shuffleHistoryRef.current.pop();
       const prevTrackId = shuffleHistoryRef.current[shuffleHistoryRef.current.length - 1];
       const prevTrack = allTracks.find((t) => t.id === prevTrackId);
       if (prevTrack) {
@@ -472,7 +618,6 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
       }
     }
 
-    // Default sequential previous
     const currentId = currentTrackRef.current?.id;
     const idx = allTracks.findIndex((t) => t.id === currentId);
     const prevIndex = idx > 0 ? idx - 1 : allTracks.length - 1;
@@ -556,6 +701,8 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
       if (currentTrack?.id === trackId) {
         pauseMusic();
       }
+      // Delete from IndexedDB vault as well
+      deleteAudioBlob(trackId);
       setTracks((prev) => prev.filter((t) => t.id !== trackId));
     },
     [currentTrack?.id, pauseMusic]
@@ -571,7 +718,7 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     );
   }, []);
 
-  // Play a random track directly and ensure shuffle mode is engaged
+  // Play a random track directly and engage shuffle
   const playRandomTrack = useCallback(() => {
     setIsShuffle(true);
     isShuffleRef.current = true;
@@ -604,6 +751,10 @@ export function useMusicAudioPlayer(onMusicPlayStart?: () => void) {
     durationSec,
     isShuffle,
     loopMode,
+    volume,
+    isMuted,
+    setVolume,
+    toggleMute,
     playTrack,
     playRandomTrack,
     pauseMusic,

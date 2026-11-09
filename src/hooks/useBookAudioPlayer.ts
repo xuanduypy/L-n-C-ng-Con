@@ -335,8 +335,9 @@ export function useBookAudioPlayer(books: Book[] = []) {
       utterance.pitch = Math.max(0.5, Math.min(1.5, pitch));
       utterance.volume = isMuted ? 0 : volume * voiceSettings.volume;
 
-      // Chrome long-utterance safeguard
+      // Chrome long-utterance safeguard & mobile heartbeat
       let safetyTimer: any = null;
+      let heartbeatTimer: any = null;
       const expectedDurationMs = Math.max(2500, (sentence.length / 8) * (1000 / utterance.rate) + 3000);
 
       utterance.onstart = () => {
@@ -345,10 +346,21 @@ export function useBookAudioPlayer(books: Book[] = []) {
             onEnd();
           }
         }, expectedDurationMs);
+
+        // Keep speech synthesis active on Chrome/Safari mobile
+        heartbeatTimer = setInterval(() => {
+          if (!isPlayingRef.current || !window.speechSynthesis.speaking) {
+            clearInterval(heartbeatTimer);
+            return;
+          }
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }, 10000);
       };
 
       utterance.onend = () => {
         if (safetyTimer) clearTimeout(safetyTimer);
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
         currentUtteranceRef.current = null;
         if (isPlayingRef.current) {
           onEnd();
@@ -357,6 +369,7 @@ export function useBookAudioPlayer(books: Book[] = []) {
 
       utterance.onerror = (e) => {
         if (safetyTimer) clearTimeout(safetyTimer);
+        if (heartbeatTimer) clearInterval(heartbeatTimer);
         currentUtteranceRef.current = null;
         console.warn('SpeechSynthesis sentence event:', e);
         if (isPlayingRef.current) {
@@ -435,6 +448,41 @@ export function useBookAudioPlayer(books: Book[] = []) {
   // Play sentence recursively with smooth human breath pause
   const playFromIndex = useCallback(
     (index: number) => {
+      // Check if current chapter has an audioUrl (e.g. created/recorded audio file)
+      if (currentChapterRef.current?.audioUrl) {
+        stopAudio();
+        const audio = new Audio(currentChapterRef.current.audioUrl);
+        currentAudioElementRef.current = audio;
+        audio.playbackRate = playbackRate;
+        audio.volume = isMuted ? 0 : volume * voiceSettings.volume;
+
+        audio.onended = () => {
+          const book = currentBookRef.current;
+          const currentChap = currentChapterRef.current;
+          if (book && currentChap && book.chapters && book.chapters.length > 0) {
+            const sorted = [...book.chapters].sort((a, b) => a.order - b.order);
+            const currentIndex = sorted.findIndex((c) => c.id === currentChap.id);
+            if (currentIndex !== -1 && currentIndex + 1 < sorted.length) {
+              const nextChap = sorted[currentIndex + 1];
+              currentChapterRef.current = nextChap;
+              setCurrentChapter(nextChap);
+              setCurrentSentenceIndex(0);
+              currentSentenceIndexRef.current = 0;
+              playFromIndex(0);
+              return;
+            }
+          }
+          setIsPlaying(false);
+          isPlayingRef.current = false;
+        };
+
+        audio.play().then(() => {
+          setIsPlaying(true);
+          isPlayingRef.current = true;
+        }).catch(() => {});
+        return;
+      }
+
       const sentenceList = sentencesRef.current;
       if (!sentenceList || sentenceList.length === 0) {
         setIsPlaying(false);
@@ -634,11 +682,22 @@ export function useBookAudioPlayer(books: Book[] = []) {
     const clamped = Math.max(0, Math.min(1, val));
     setVolumeState(clamped);
     if (clamped > 0) setIsMuted(false);
+    if (currentAudioElementRef.current) {
+      currentAudioElementRef.current.volume = clamped;
+      currentAudioElementRef.current.muted = false;
+    }
   }, []);
 
   const toggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
+    setIsMuted((prev) => {
+      const next = !prev;
+      if (currentAudioElementRef.current) {
+        currentAudioElementRef.current.muted = next;
+        currentAudioElementRef.current.volume = next ? 0 : volume;
+      }
+      return next;
+    });
+  }, [volume]);
 
   // Compute timing and progress for Spotify player
   const totalDurationSec = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Music,
@@ -9,8 +9,12 @@ import {
   Disc,
   FileAudio,
   AlertCircle,
+  Play,
+  Pause,
+  Volume2,
 } from 'lucide-react';
 import { MusicTrack } from '../types/book';
+import { storeAudioBlob } from '../utils/audioVault';
 
 interface AddMusicModalProps {
   isOpen: boolean;
@@ -90,10 +94,56 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
   const [detectedDuration, setDetectedDuration] = useState<number>(60);
   const [selectedMelodyTemplate, setSelectedMelodyTemplate] = useState(MELODY_TEMPLATES[0]);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Audio Preview state
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [previewCurrentTime, setPreviewCurrentTime] = useState(0);
+  const [previewDuration, setPreviewDuration] = useState(0);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const previewUrlRef = useRef<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Stop preview audio when modal closes or unmounts
+  useEffect(() => {
+    return () => {
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+      if (previewUrlRef.current) {
+        try {
+          URL.revokeObjectURL(previewUrlRef.current);
+        } catch {}
+        previewUrlRef.current = null;
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const stopPreview = () => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+    }
+    setIsPreviewPlaying(false);
+    setPreviewCurrentTime(0);
+  };
+
+  const handleTogglePreview = () => {
+    if (!previewAudioRef.current) return;
+    if (isPreviewPlaying) {
+      previewAudioRef.current.pause();
+      setIsPreviewPlaying(false);
+    } else {
+      previewAudioRef.current
+        .play()
+        .then(() => setIsPreviewPlaying(true))
+        .catch(() => setIsPreviewPlaying(false));
+    }
+  };
 
   // Handle file selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,12 +151,13 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
     if (!file) return;
 
     if (!file.type.startsWith('audio/') && !/\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name)) {
-      setErrorMsg('Vui lòng chọn tệp âm thanh hợp lệ: mp3, wav, m4a, ogg');
+      setErrorMsg('Vui lòng chọn tệp âm thanh hợp lệ: mp3, wav, m4a, ogg, flac');
       return;
     }
 
     setErrorMsg('');
     setUploadedFile(file);
+    stopPreview();
 
     // Auto extract title from filename
     if (!title) {
@@ -114,33 +165,47 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
       setTitle(cleanName);
     }
 
-    // Try detecting audio duration safely
+    // Set up preview Audio
     try {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
       const objUrl = URL.createObjectURL(file);
-      const tempAudio = new Audio();
-      tempAudio.preload = 'metadata';
-      tempAudio.onloadedmetadata = () => {
-        if (tempAudio.duration && !isNaN(tempAudio.duration)) {
-          setDetectedDuration(Math.round(tempAudio.duration));
+      previewUrlRef.current = objUrl;
+
+      const audio = new Audio(objUrl);
+      previewAudioRef.current = audio;
+      audio.preload = 'metadata';
+
+      audio.onloadedmetadata = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const dur = Math.round(audio.duration);
+          setDetectedDuration(dur);
+          setPreviewDuration(dur);
         }
-        URL.revokeObjectURL(objUrl);
       };
-      tempAudio.onerror = (err) => {
-        if (typeof err !== 'string') err?.preventDefault?.();
-        URL.revokeObjectURL(objUrl);
+
+      audio.ontimeupdate = () => {
+        setPreviewCurrentTime(Math.round(audio.currentTime));
       };
-      tempAudio.src = objUrl;
-    } catch {}
+
+      audio.onended = () => {
+        setIsPreviewPlaying(false);
+        setPreviewCurrentTime(0);
+      };
+
+      audio.onerror = () => {
+        setErrorMsg('Không thể giải mã tệp âm thanh. Vui lòng thử định dạng MP3 hoặc WAV chuẩn.');
+      };
+    } catch (err) {
+      console.warn('Preview audio setup error:', err);
+    }
   };
 
-  // Convert uploaded file to Data URL for durable local storage
-  const readFileAsDataUrl = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+  const formatSeconds = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,55 +215,67 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
       return;
     }
 
-    let finalAudioUrl: string | undefined = undefined;
-    // Always provide musical notes fallback so the track NEVER fails to play
-    let finalNotes: { note: string; duration: number }[] | undefined = selectedMelodyTemplate.notes;
-    let finalDuration = detectedDuration;
+    setIsSubmitting(true);
+    stopPreview();
 
-    if (sourceType === 'upload') {
-      if (!uploadedFile) {
-        setErrorMsg('Vui lòng chọn tệp âm thanh tải lên!');
-        return;
-      }
-      try {
-        if (uploadedFile.size < 5 * 1024 * 1024) {
-          finalAudioUrl = await readFileAsDataUrl(uploadedFile);
-        } else {
-          finalAudioUrl = URL.createObjectURL(uploadedFile);
+    try {
+      const trackId = `custom-track-${Date.now()}`;
+      let finalAudioUrl: string | undefined = undefined;
+      let hasBlobInVault = false;
+      let finalNotes: { note: string; duration: number }[] | undefined = selectedMelodyTemplate.notes;
+      let finalDuration = detectedDuration;
+
+      if (sourceType === 'upload') {
+        if (!uploadedFile) {
+          setErrorMsg('Vui lòng chọn tệp âm thanh tải lên!');
+          setIsSubmitting(false);
+          return;
         }
-      } catch {
-        finalAudioUrl = undefined;
+
+        // 1. Store persistent binary audio blob in IndexedDB vault
+        await storeAudioBlob(trackId, uploadedFile);
+        hasBlobInVault = true;
+
+        // 2. Generate Object URL for immediate playback
+        finalAudioUrl = URL.createObjectURL(uploadedFile);
+      } else if (sourceType === 'url') {
+        if (!audioUrlInput.trim()) {
+          setErrorMsg('Vui lòng nhập đường dẫn liên kết tệp âm thanh!');
+          setIsSubmitting(false);
+          return;
+        }
+        finalAudioUrl = audioUrlInput.trim();
+      } else {
+        // Melody mode
+        finalNotes = selectedMelodyTemplate.notes;
+        finalDuration = selectedMelodyTemplate.durationSec;
       }
-    } else if (sourceType === 'url') {
-      if (!audioUrlInput.trim()) {
-        setErrorMsg('Vui lòng nhập đường dẫn liên kết tệp âm thanh!');
-        return;
-      }
-      finalAudioUrl = audioUrlInput.trim();
-    } else {
-      // Melody
-      finalNotes = selectedMelodyTemplate.notes;
-      finalDuration = selectedMelodyTemplate.durationSec;
+
+      const newTrack: MusicTrack = {
+        id: trackId,
+        title: title.trim(),
+        artist: artist.trim() || 'Nhạc Thiếu Nhi Gia Đình',
+        category,
+        coverGradient: selectedGradient.class,
+        coverBgColor: selectedGradient.bg,
+        audioUrl: finalAudioUrl,
+        notes: finalNotes,
+        durationSec: finalDuration,
+        lyrics: lyrics.trim() || undefined,
+        isFavorite: false,
+        isCustom: true,
+        hasBlobInVault,
+        createdAt: Date.now(),
+      };
+
+      onAddTrack(newTrack);
+      onClose();
+    } catch (err) {
+      console.error('Submit track error:', err);
+      setErrorMsg('Có lỗi xảy ra khi lưu bài hát. Vui lòng thử lại.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const newTrack: MusicTrack = {
-      id: `custom-track-${Date.now()}`,
-      title: title.trim(),
-      artist: artist.trim() || 'Nhạc Thiếu Nhi Gia Đình',
-      category,
-      coverGradient: selectedGradient.class,
-      coverBgColor: selectedGradient.bg,
-      audioUrl: finalAudioUrl,
-      notes: finalNotes,
-      durationSec: finalDuration,
-      lyrics: lyrics.trim() || undefined,
-      isFavorite: false,
-      isCustom: true,
-      createdAt: Date.now(),
-    };
-
-    onAddTrack(newTrack);
-    onClose();
   };
 
   return (
@@ -215,14 +292,17 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
                 Thêm Bài Hát Vào Kho Nhạc
               </h3>
               <p className="text-xs text-neutral-400">
-                Tải lên tệp MP3, dán đường dẫn link hoặc tạo giai điệu thư giãn
+                Tải tệp âm thanh (MP3, WAV, M4A, FLAC) hoặc dán link nhạc
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-[#333333] text-neutral-400 hover:text-white transition-colors"
+            onClick={() => {
+              stopPreview();
+              onClose();
+            }}
+            className="p-2 rounded-full hover:bg-[#333333] text-neutral-400 hover:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -245,10 +325,13 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={() => setSourceType('upload')}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 ${
+                onClick={() => {
+                  stopPreview();
+                  setSourceType('upload');
+                }}
+                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
                   sourceType === 'upload'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white'
+                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
                     : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
                 }`}
               >
@@ -258,10 +341,13 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
 
               <button
                 type="button"
-                onClick={() => setSourceType('url')}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 ${
+                onClick={() => {
+                  stopPreview();
+                  setSourceType('url');
+                }}
+                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
                   sourceType === 'url'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white'
+                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
                     : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
                 }`}
               >
@@ -271,10 +357,13 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
 
               <button
                 type="button"
-                onClick={() => setSourceType('melody')}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 ${
+                onClick={() => {
+                  stopPreview();
+                  setSourceType('melody');
+                }}
+                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
                   sourceType === 'melody'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white'
+                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
                     : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
                 }`}
               >
@@ -286,7 +375,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
 
           {/* Mode 1: Upload Audio File */}
           {sourceType === 'upload' && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -296,20 +385,66 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
               />
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="p-6 rounded-xl border-2 border-dashed border-[#383838] hover:border-[#1ed760] bg-[#1f1f1f] hover:bg-[#252525] cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 group"
+                className="p-5 rounded-xl border-2 border-dashed border-[#383838] hover:border-[#1ed760] bg-[#1f1f1f] hover:bg-[#252525] cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 group"
               >
                 <div className="w-12 h-12 rounded-full bg-[#1ed760]/10 group-hover:bg-[#1ed760]/20 text-[#1ed760] flex items-center justify-center transition-all">
                   <FileAudio className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="font-bold text-sm text-white group-hover:text-[#1ed760] transition-colors">
-                    {uploadedFile ? uploadedFile.name : 'Bấm để chọn tệp bài hát'}
+                    {uploadedFile ? uploadedFile.name : 'Bấm để chọn tệp âm thanh'}
                   </p>
                   <p className="text-[11px] text-neutral-400 mt-0.5">
-                    Hỗ trợ tệp MP3, WAV, M4A, OGG từ điện thoại hoặc máy tính
+                    Hỗ trợ MP3, WAV, M4A, OGG, FLAC (Lưu an toàn không giới hạn dung lượng)
                   </p>
+                  {uploadedFile && (
+                    <p className="text-[10px] text-amber-400 font-bold mt-1">
+                      Kích thước: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB • Thời lượng: {formatSeconds(detectedDuration)}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* In-Modal Audio Preview Bar */}
+              {uploadedFile && previewAudioRef.current && (
+                <div className="bg-[#222222] border border-[#333333] rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={handleTogglePreview}
+                      className="w-9 h-9 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+                      title={isPreviewPlaying ? 'Tạm dừng nghe thử' : 'Nghe thử âm thanh'}
+                    >
+                      {isPreviewPlaying ? (
+                        <Pause className="w-4 h-4 fill-black" />
+                      ) : (
+                        <Play className="w-4 h-4 fill-black translate-x-0.5" />
+                      )}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-bold text-neutral-300 truncate">
+                          {isPreviewPlaying ? 'Đang nghe thử...' : 'Nghe thử trước khi lưu'}
+                        </span>
+                        <span className="text-neutral-400 text-[10px] shrink-0 font-mono">
+                          {formatSeconds(previewCurrentTime)} / {formatSeconds(previewDuration || detectedDuration)}
+                        </span>
+                      </div>
+                      <div className="w-full bg-[#333333] h-1.5 rounded-full overflow-hidden">
+                        <div
+                          className="bg-[#1ed760] h-full transition-all duration-200"
+                          style={{
+                            width: `${previewDuration > 0 ? (previewCurrentTime / previewDuration) * 100 : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="shrink-0 flex items-center text-neutral-400 text-xs">
+                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -317,7 +452,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
           {sourceType === 'url' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-neutral-400 uppercase">
-                Đường Dẫn Âm Thanh
+                Đường Dẫn Âm Thanh (URL MP3/WAV)
               </label>
               <input
                 type="url"
@@ -410,7 +545,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
                   key={c.id}
                   type="button"
                   onClick={() => setCategory(c.id as any)}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all text-center ${
+                  className={`py-1.5 px-2 rounded-lg text-xs font-bold border transition-all text-center cursor-pointer ${
                     category === c.id
                       ? 'border-[#1ed760] bg-[#1ed760]/20 text-[#1ed760]'
                       : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
@@ -433,7 +568,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
                   key={preset.id}
                   type="button"
                   onClick={() => setSelectedGradient(preset)}
-                  className={`w-9 h-9 rounded-full bg-gradient-to-br ${preset.class} border-2 transition-all shrink-0 flex items-center justify-center ${
+                  className={`w-9 h-9 rounded-full bg-gradient-to-br ${preset.class} border-2 transition-all shrink-0 flex items-center justify-center cursor-pointer ${
                     selectedGradient.id === preset.id
                       ? 'border-white scale-110 shadow-lg'
                       : 'border-transparent opacity-70 hover:opacity-100'
@@ -469,10 +604,17 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full py-3 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-102 active:scale-98 flex items-center justify-center gap-2"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] disabled:opacity-50 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-102 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span>Lưu Bài Hát Vào Kho Nhạc</span>
+              {isSubmitting ? (
+                <span>Đang xử lý & lưu âm thanh...</span>
+              ) : (
+                <>
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>Lưu Bài Hát Vào Kho Nhạc</span>
+                </>
+              )}
             </button>
           </div>
         </form>

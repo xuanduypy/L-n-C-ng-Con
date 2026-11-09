@@ -5,6 +5,7 @@ export interface Chapter {
   order: number;
   wordCount: number;
   estimatedDurationSec: number;
+  audioUrl?: string;
 }
 
 export interface Book {
@@ -88,6 +89,7 @@ export interface MusicTrack {
   notes?: { note: string; duration: number }[];
   isFavorite?: boolean;
   isCustom?: boolean;
+  hasBlobInVault?: boolean;
   createdAt: number;
   albumId?: string;
   albumTitle?: string;
