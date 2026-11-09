@@ -200,41 +200,8 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           )}
         </div>
 
-        {/* Right: User Avatar / Login Button */}
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={onOpenUserAccount}
-            className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#202020] hover:bg-[#282828] border border-neutral-800 hover:border-neutral-700 active:scale-95 transition-all text-left group cursor-pointer"
-            title={user?.isLoggedIn ? 'Hồ sơ cá nhân & Cài đặt' : 'Đăng nhập tài khoản'}
-          >
-            {user?.isLoggedIn ? (
-              <>
-                <div
-                  className={`w-7 h-7 rounded-full bg-gradient-to-tr ${
-                    user.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
-                  } flex items-center justify-center text-sm shadow-sm border border-white/20 shrink-0 group-hover:scale-105 transition-transform`}
-                >
-                  {user.zodiacEmoji || (user.isAdmin ? '👑' : currentZodiac.emoji)}
-                </div>
-                <div className="flex items-center gap-1.5 max-w-[150px]">
-                  <span className="text-xs font-bold text-white truncate group-hover:text-amber-400 transition-colors">
-                    {user.name?.replace(/\s*\(Admin\)/i, '') || (user.isAdmin ? 'Xuân Duy' : 'Thành viên')}
-                  </span>
-                  {user.isAdmin && (
-                    <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider uppercase shrink-0">
-                      ADMIN
-                    </span>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-400 group-hover:text-amber-300">
-                <User className="w-4 h-4 text-amber-400" />
-                <span>Đăng nhập</span>
-              </div>
-            )}
-          </button>
-        </div>
+        {/* Right slot spacer for visual balance (Nút Đăng nhập trên web desktop đã có ở Sidebar bên trái) */}
+        <div className="w-8 shrink-0" />
       </div>
     </header>
   );
