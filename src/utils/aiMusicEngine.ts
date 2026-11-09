@@ -12,6 +12,8 @@ export interface AIMusicConfig {
   bpm: number;
   durationSec: number;
   lyrics?: string;
+  singerVoice?: string;
+  sunoBeatStyle?: string;
   instruments?: string[];
   notes?: { note: string; time: number; duration: number; instrument?: string }[];
 }
@@ -24,6 +26,9 @@ export interface GeneratedAIMusic {
   bpm: number;
   durationSec: number;
   lyrics: string;
+  singerVoice?: string;
+  singerVoiceLabel?: string;
+  sunoBeatStyle?: string;
   audioBlob: Blob;
   audioUrl: string;
   createdAt: number;
@@ -148,31 +153,63 @@ const GENRE_PATTERNS: Record<string, GenrePattern> = {
   },
 };
 
+export const SINGER_VOICE_LIST = [
+  { id: 'nu_truyencam', name: 'Giọng Nữ Ấm Áp Truyền Cảm', desc: 'Tone nữ ngọt ngào, giàu cảm xúc phong cách Pop Ballad', icon: '👩‍🎤' },
+  { id: 'nam_tram', name: 'Giọng Nam Trầm Ấm Baritone', desc: 'Tone nam dày dặn, tự sự, sâu lắng và điềm tĩnh', icon: '👨‍🎤' },
+  { id: 'song_ca', name: 'Song Ca Nam Nữ Hòa Âm (Suno)', desc: 'Phối hòa âm bè đôi nam nữ đan xen cuốn hút', icon: '👥' },
+  { id: 'tre_tho', name: 'Giọng Trẻ Thơ Trong Sáng', desc: 'Hồn nhiên, tươi vui, phù hợp ca khúc thiếu nhi và gia đình', icon: '🧒' },
+  { id: 'acoustic_live', name: 'Giọng Mộc Live Acoustic Suno', desc: 'Chất giọng mộc mạc, gần gũi như hát live cùng đàn mộc', icon: '🎸' },
+  { id: 'instrumental', name: 'Nhạc Hòa Tấu (Không Lời)', desc: 'Tập trung trọn vẹn vào giai điệu nhạc cụ và nhịp beat thư giãn', icon: '🎹' },
+];
+
+export const SUNO_BEAT_LIST = [
+  { id: 'suno_pop', name: 'Suno Modern Pop Kick-Snare', desc: 'Nhịp Kick đầm ấm, Snare gọn gàng, Sub-bass hiện đại', tempoRange: '78-115 BPM' },
+  { id: 'acoustic_cajon', name: 'Acoustic Strum & Soft Cajon', desc: 'Tiếng quạt chả guitar gỗ kết hợp nhịp trống gõ mộc mạc', tempoRange: '75-95 BPM' },
+  { id: 'lofi_vinyl', name: 'Lofi Chillhop Vinyl & Deep Bass', desc: 'Tiếng nổ đĩa than ấm áp, beat lơi thư thái đọc sách', tempoRange: '70-85 BPM' },
+  { id: 'ballad_68', name: 'Piano Ballad Chords & Strings', desc: 'Hòa âm piano cổ điển kết hợp đàn dây giao hưởng du dương', tempoRange: '62-76 BPM' },
+  { id: 'celestial_bells', name: 'Lullaby Celestial Bells & Harp', desc: 'Chuông gió thần tiên, hạc cầm ru giấc mộng êm ái', tempoRange: '56-68 BPM' },
+];
+
+/**
+ * Helper to synthesize White Noise buffer for snare/hi-hat percussions
+ */
+function createNoiseBuffer(ctx: BaseAudioContext, duration: number = 1): AudioBuffer {
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
 /**
  * Render complete audio track using OfflineAudioContext.
- * This runs at ultra high speed (renders 30s audio in ~200ms) and returns an AudioBuffer.
+ * Supports standard song durations from 2 to 5 minutes (120s to 300s).
  */
 export async function renderAIMusicBuffer(
   config: AIMusicConfig
 ): Promise<AudioBuffer> {
   const sampleRate = 44100;
-  const duration = Math.min(Math.max(config.durationSec || 30, 15), 180);
+  // Standard duration: 2 to 5 minutes (120 to 300s)
+  const duration = Math.min(Math.max(config.durationSec || 180, 60), 300);
   const pattern = GENRE_PATTERNS[config.genre] || GENRE_PATTERNS.ru_ngu;
   const bpm = config.bpm || pattern.bpm;
   const beatDuration = 60 / bpm;
   const barDuration = beatDuration * 4;
 
   const offlineCtx = new OfflineAudioContext(2, sampleRate * duration, sampleRate);
+  const noiseBuffer = createNoiseBuffer(offlineCtx, 1.5);
 
   // Master Gain & Limiter
   const masterGain = offlineCtx.createGain();
-  masterGain.gain.setValueAtTime(0.7, 0);
+  masterGain.gain.setValueAtTime(0.75, 0);
 
-  // Reverb simulation using Convolver or gentle delay
+  // Reverb simulation using gentle stereo delay
   const delayNode = offlineCtx.createDelay();
   delayNode.delayTime.setValueAtTime(beatDuration * 0.75, 0);
   const feedbackNode = offlineCtx.createGain();
-  feedbackNode.gain.setValueAtTime(0.3, 0);
+  feedbackNode.gain.setValueAtTime(0.32, 0);
 
   delayNode.connect(feedbackNode);
   feedbackNode.connect(delayNode);
@@ -180,7 +217,7 @@ export async function renderAIMusicBuffer(
 
   masterGain.connect(offlineCtx.destination);
 
-  // Filter
+  // Main Instrument Filter
   const filter = offlineCtx.createBiquadFilter();
   filter.type = 'lowpass';
   filter.frequency.setValueAtTime(pattern.filterFreq, 0);
@@ -188,21 +225,41 @@ export async function renderAIMusicBuffer(
   filter.connect(masterGain);
   filter.connect(delayNode);
 
-  // Generate Chords throughout duration
+  // Drum / Percussion Bus
+  const drumBus = offlineCtx.createGain();
+  drumBus.gain.setValueAtTime(0.45, 0);
+  drumBus.connect(masterGain);
+
+  // Vocal Pad / Singer Formant Bus
+  const vocalBus = offlineCtx.createGain();
+  vocalBus.gain.setValueAtTime(config.singerVoice === 'instrumental' ? 0.0 : 0.28, 0);
+  const vocalFilter = offlineCtx.createBiquadFilter();
+  vocalFilter.type = 'bandpass';
+  vocalFilter.frequency.setValueAtTime(
+    config.singerVoice === 'nam_tram' ? 520 : config.singerVoice === 'nu_truyencam' ? 1150 : 800,
+    0
+  );
+  vocalFilter.Q.setValueAtTime(3.0, 0);
+  vocalBus.connect(vocalFilter);
+  vocalFilter.connect(delayNode);
+  vocalFilter.connect(masterGain);
+
+  // Synthesize Chords, Melody, Bass & Suno AI Drum Beats
   let currentTime = 0;
   let chordIndex = 0;
+
   while (currentTime < duration) {
     const chordNotes = pattern.chords[chordIndex % pattern.chords.length];
     const bassNote = pattern.bassline[chordIndex % pattern.bassline.length];
 
-    // Play Bass Note
+    // 1. Play Bass Note (Punchy Sub Bass)
     const bassFreq = PITCHES[bassNote] || 130.81;
     const bassOsc = offlineCtx.createOscillator();
     const bassGain = offlineCtx.createGain();
     bassOsc.type = 'triangle';
     bassOsc.frequency.setValueAtTime(bassFreq * 0.5, currentTime);
 
-    bassGain.gain.setValueAtTime(0.3, currentTime);
+    bassGain.gain.setValueAtTime(0.35, currentTime);
     bassGain.gain.exponentialRampToValueAtTime(0.001, currentTime + barDuration * 0.9);
 
     bassOsc.connect(bassGain);
@@ -210,8 +267,82 @@ export async function renderAIMusicBuffer(
     bassOsc.start(currentTime);
     bassOsc.stop(currentTime + barDuration);
 
-    // Play Chord Notes (Arpeggiated & Sustained)
-    chordNotes.forEach((noteName, nIdx) => {
+    // 2. Play Suno-Style Drum Beat (Kick on 1 & 3, Snare on 2 & 4, Hi-hat on 8ths)
+    if (config.genre !== 'thien_dinh') {
+      // Beat 1: Kick
+      const kickOsc1 = offlineCtx.createOscillator();
+      const kickGain1 = offlineCtx.createGain();
+      kickOsc1.frequency.setValueAtTime(120, currentTime);
+      kickOsc1.frequency.exponentialRampToValueAtTime(42, currentTime + 0.12);
+      kickGain1.gain.setValueAtTime(0.65, currentTime);
+      kickGain1.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.25);
+      kickOsc1.connect(kickGain1);
+      kickGain1.connect(drumBus);
+      kickOsc1.start(currentTime);
+      kickOsc1.stop(currentTime + 0.3);
+
+      // Beat 3: Kick
+      const t3 = currentTime + beatDuration * 2;
+      if (t3 < duration) {
+        const kickOsc3 = offlineCtx.createOscillator();
+        const kickGain3 = offlineCtx.createGain();
+        kickOsc3.frequency.setValueAtTime(110, t3);
+        kickOsc3.frequency.exponentialRampToValueAtTime(40, t3 + 0.12);
+        kickGain3.gain.setValueAtTime(0.55, t3);
+        kickGain3.gain.exponentialRampToValueAtTime(0.001, t3 + 0.25);
+        kickOsc3.connect(kickGain3);
+        kickGain3.connect(drumBus);
+        kickOsc3.start(t3);
+        kickOsc3.stop(t3 + 0.3);
+      }
+
+      // Beat 2 & 4: Snare / Clap
+      [1, 3].forEach((bIdx) => {
+        const snareTime = currentTime + beatDuration * bIdx;
+        if (snareTime < duration) {
+          const noise = offlineCtx.createBufferSource();
+          noise.buffer = noiseBuffer;
+          const snareFilter = offlineCtx.createBiquadFilter();
+          snareFilter.type = 'bandpass';
+          snareFilter.frequency.setValueAtTime(1600, snareTime);
+          snareFilter.Q.setValueAtTime(2.0, snareTime);
+
+          const snareGain = offlineCtx.createGain();
+          snareGain.gain.setValueAtTime(0.3, snareTime);
+          snareGain.gain.exponentialRampToValueAtTime(0.001, snareTime + 0.18);
+
+          noise.connect(snareFilter);
+          snareFilter.connect(snareGain);
+          snareGain.connect(drumBus);
+          noise.start(snareTime);
+          noise.stop(snareTime + 0.2);
+        }
+      });
+
+      // Hi-Hats every 8th note
+      for (let h = 0; h < 8; h++) {
+        const hhTime = currentTime + h * (beatDuration / 2);
+        if (hhTime < duration) {
+          const hhNoise = offlineCtx.createBufferSource();
+          hhNoise.buffer = noiseBuffer;
+          const hhFilter = offlineCtx.createBiquadFilter();
+          hhFilter.type = 'highpass';
+          hhFilter.frequency.setValueAtTime(6500, hhTime);
+          const hhGain = offlineCtx.createGain();
+          hhGain.gain.setValueAtTime(h % 2 === 0 ? 0.08 : 0.04, hhTime);
+          hhGain.gain.exponentialRampToValueAtTime(0.0001, hhTime + 0.05);
+
+          hhNoise.connect(hhFilter);
+          hhFilter.connect(hhGain);
+          hhGain.connect(drumBus);
+          hhNoise.start(hhTime);
+          hhNoise.stop(hhTime + 0.06);
+        }
+      }
+    }
+
+    // 3. Play Chord Notes (Arpeggiated & Sustained)
+    chordNotes.forEach((noteName) => {
       const noteFreq = PITCHES[noteName];
       if (noteFreq) {
         const osc = offlineCtx.createOscillator();
@@ -221,23 +352,37 @@ export async function renderAIMusicBuffer(
 
         // Soft attack and decay
         g.gain.setValueAtTime(0.001, currentTime);
-        g.gain.linearRampToValueAtTime(0.12, currentTime + 0.1);
+        g.gain.linearRampToValueAtTime(0.14, currentTime + 0.1);
         g.gain.exponentialRampToValueAtTime(0.001, currentTime + barDuration * 0.95);
 
         osc.connect(g);
         g.connect(filter);
         osc.start(currentTime);
         osc.stop(currentTime + barDuration);
+
+        // Vocal Formant Pad (Simulate singer backing harmony)
+        if (config.singerVoice && config.singerVoice !== 'instrumental') {
+          const vocOsc = offlineCtx.createOscillator();
+          const vocGain = offlineCtx.createGain();
+          vocOsc.type = 'sine';
+          vocOsc.frequency.setValueAtTime(noteFreq * (config.singerVoice === 'nam_tram' ? 0.5 : 1), currentTime);
+          vocGain.gain.setValueAtTime(0.001, currentTime);
+          vocGain.gain.linearRampToValueAtTime(0.12, currentTime + 0.3);
+          vocGain.gain.exponentialRampToValueAtTime(0.001, currentTime + barDuration * 0.9);
+          vocOsc.connect(vocGain);
+          vocGain.connect(vocalBus);
+          vocOsc.start(currentTime);
+          vocOsc.stop(currentTime + barDuration);
+        }
       }
     });
 
-    // Play Melody notes within this bar
+    // 4. Play Melody notes within this bar
     const melodySteps = 4;
     for (let s = 0; s < melodySteps; s++) {
       const noteTime = currentTime + s * beatDuration;
       if (noteTime >= duration) break;
 
-      // Pick a note from genre scale
       const scaleIndex = (chordIndex * 2 + s * 3) % pattern.scale.length;
       const melodyNote = pattern.scale[scaleIndex];
       const melodyFreq = PITCHES[melodyNote];
@@ -248,9 +393,8 @@ export async function renderAIMusicBuffer(
         mOsc.type = pattern.leadTimbre;
         mOsc.frequency.setValueAtTime(melodyFreq, noteTime);
 
-        // Bell/Pluck envelope
         mGain.gain.setValueAtTime(0.001, noteTime);
-        mGain.gain.linearRampToValueAtTime(0.18, noteTime + 0.03);
+        mGain.gain.linearRampToValueAtTime(0.19, noteTime + 0.03);
         mGain.gain.exponentialRampToValueAtTime(0.001, noteTime + beatDuration * 0.85);
 
         mOsc.connect(mGain);
@@ -264,7 +408,7 @@ export async function renderAIMusicBuffer(
     chordIndex++;
   }
 
-  // Render
+  // Render buffer
   return await offlineCtx.startRendering();
 }
 
@@ -279,6 +423,8 @@ export async function generateAIMusicTrack(
   const url = URL.createObjectURL(blob);
   const pattern = GENRE_PATTERNS[config.genre] || GENRE_PATTERNS.ru_ngu;
 
+  const singerVoiceObj = SINGER_VOICE_LIST.find((v) => v.id === config.singerVoice);
+
   return {
     id: `aimusic-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     title: config.title || pattern.name,
@@ -287,6 +433,9 @@ export async function generateAIMusicTrack(
     bpm: config.bpm || pattern.bpm,
     durationSec: Math.round(buffer.duration),
     lyrics: config.lyrics || 'Giai điệu hòa tấu thư giãn êm dịu do AI DiNo sáng tác.',
+    singerVoice: config.singerVoice || 'nu_truyencam',
+    singerVoiceLabel: singerVoiceObj?.name || 'Giọng Nữ Ấm Áp Truyền Cảm',
+    sunoBeatStyle: config.sunoBeatStyle || 'Suno Modern Pop Kick-Snare',
     audioBlob: blob,
     audioUrl: url,
     createdAt: Date.now(),

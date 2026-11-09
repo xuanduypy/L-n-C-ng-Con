@@ -293,6 +293,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [previewingVoiceId, setPreviewingVoiceId] = useState<string | null>(null);
+  const [isSaved, setIsSaved] = useState<boolean>(false);
 
   // Playback & Sentence Tracker
   const [isPlaying, setIsPlaying] = useState(false);
@@ -697,6 +698,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
     }
 
     setIsGenerating(true);
+    setIsSaved(false);
     setGenerationProgress(15);
 
     try {
@@ -859,7 +861,8 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
     };
 
     onSaveBookToLibrary(newBook);
-    alert(`🎉 Đã lưu cuốn sách "${newBook.title}" vào Thư Viện của bạn thành công!`);
+    setIsSaved(true);
+    alert(`🎉 Đã lưu cuốn sách "${newBook.title}" vào Kho Sách của bạn thành công!`);
   };
 
   // =========================================================================
@@ -1129,19 +1132,21 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
             <button
               onClick={handleSaveBook}
               disabled={!isGenerated}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs transition-all border active:scale-95 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full font-black text-xs uppercase tracking-wider transition-all border active:scale-95 ${
                 isGenerated
-                  ? 'bg-[#262626] hover:bg-[#323232] text-white border-[#3e3e3e] cursor-pointer'
+                  ? isSaved
+                    ? 'bg-purple-950/80 border-purple-400 text-purple-200 cursor-pointer'
+                    : 'bg-purple-600 hover:bg-purple-500 border-purple-400 text-white shadow-lg shadow-purple-900/40 cursor-pointer'
                   : 'bg-neutral-900 text-neutral-600 border-neutral-800 cursor-not-allowed opacity-60'
               }`}
               title={
                 isGenerated
-                  ? 'Lưu sách vào Thư Viện của bạn'
+                  ? 'Lưu sách trực tiếp vào Kho Sách của bạn'
                   : 'Vui lòng bấm nút "Bắt Đầu Tạo Sách Audio" bên dưới trước khi lưu'
               }
             >
-              <Save className={`w-4 h-4 ${isGenerated ? 'text-emerald-400' : 'text-neutral-600'}`} />
-              <span>Lưu Sách</span>
+              {isSaved ? <Check className="w-4 h-4 stroke-[3]" /> : <Save className="w-4 h-4" />}
+              <span>{isSaved ? 'Đã Lưu Vào Kho' : 'Lưu Vào Kho Sách'}</span>
             </button>
           </div>
         </div>
@@ -1329,7 +1334,8 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Thanh ngang cuộn chọn giọng người dùng */}
+                    <div className="flex items-stretch gap-2.5 overflow-x-auto no-scrollbar pb-1 pt-0.5">
                       {userVoiceProfiles.map((p) => {
                         const isSelected = selectedUserProfileId === p.id;
                         return (
@@ -1340,34 +1346,45 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                               setSelectedVoiceId('user_voice');
                               setIsGenerated(false);
                             }}
-                            className={`p-3 rounded-2xl border cursor-pointer transition-all ${
+                            className={`min-w-[145px] sm:min-w-[160px] max-w-[175px] p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between shrink-0 ${
                               isSelected
-                                ? 'bg-amber-500/20 border-amber-400 text-white shadow'
+                                ? 'bg-amber-500/20 border-amber-400 text-white shadow ring-1 ring-amber-400/50'
                                 : 'bg-[#141414] border-[#2c2c2c] hover:bg-[#1a1a1a] text-neutral-300'
                             }`}
                           >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xl">🎙️</span>
-                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold">
-                                {p.warmth || 85}% Ấm áp
-                              </span>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-lg">🎙️</span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-bold">
+                                  {p.warmth || 85}% Ấm
+                                </span>
+                              </div>
+                              <p className="text-xs font-bold truncate leading-tight">{p.name}</p>
+                              <p className="text-[10px] text-neutral-400 truncate mt-0.5">
+                                {p.narratorRole === 'mom'
+                                  ? 'Giọng Mẹ Yêu'
+                                  : p.narratorRole === 'dad'
+                                  ? 'Giọng Ba'
+                                  : 'Giọng Cá Nhân'}
+                              </p>
                             </div>
-                            <p className="text-xs font-bold truncate">{p.name}</p>
-                            <p className="text-[10px] text-neutral-400 mt-0.5">
-                              {p.narratorRole === 'mom'
-                                ? 'Giọng Mẹ Yêu'
-                                : p.narratorRole === 'dad'
-                                ? 'Giọng Ba'
-                                : 'Giọng Cá Nhân'}
-                            </p>
+                            <div className="mt-2 pt-1 border-t border-neutral-800 flex items-center justify-between">
+                              <span className="text-[9px] text-neutral-500">Giọng thu âm</span>
+                              {isSelected && (
+                                <span className="text-[9px] font-black text-amber-400 flex items-center gap-0.5">
+                                  <Check className="w-3 h-3 stroke-[3]" />
+                                  <span>Chọn</span>
+                                </span>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-amber-500/20">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-amber-500/20">
                       <div>
-                        <div className="flex justify-between text-[11px] text-amber-200 mb-1">
+                        <div className="flex justify-between text-[11px] text-amber-200 mb-0.5">
                           <span>Độ ấm áp giọng:</span>
                           <span className="font-bold text-amber-300">{warmth}%</span>
                         </div>
@@ -1378,12 +1395,12 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                           step="5"
                           value={warmth}
                           onChange={(e) => setWarmth(Number(e.target.value))}
-                          className="w-full accent-amber-400 cursor-pointer"
+                          className="w-full accent-amber-400 cursor-pointer h-1.5"
                         />
                       </div>
 
                       <div>
-                        <div className="flex justify-between text-[11px] text-amber-200 mb-1">
+                        <div className="flex justify-between text-[11px] text-amber-200 mb-0.5">
                           <span>Tốc độ đọc giọng bạn:</span>
                           <span className="font-bold text-amber-300">{playbackRate}x</span>
                         </div>
@@ -1394,7 +1411,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                           step="0.05"
                           value={playbackRate}
                           onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                          className="w-full accent-amber-400 cursor-pointer"
+                          className="w-full accent-amber-400 cursor-pointer h-1.5"
                         />
                       </div>
                     </div>
@@ -1403,13 +1420,14 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
               </div>
             )}
 
-            {/* --- CASE B: AI STUDIO MODE (6 Giọng AI với nút nghe thử 3s rõ rệt) --- */}
+            {/* --- CASE B: AI STUDIO MODE (Thanh ngang các giọng AI Studio gọn gàng, chuyên nghiệp) --- */}
             {selectedCreationMode === 'ai-studio' && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-[#181818] to-[#141414] border border-emerald-500/40 space-y-4">
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-950/30 via-[#181818] to-[#141414] border border-emerald-500/40 space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-2">
                     <Volume2 className="w-4 h-4 text-emerald-400" />
-                    <span>Kho Giọng Đọc AI Studio Chuyên Nghiệp</span>
+                    <span>Chọn Giọng AI Studio</span>
+                    <span className="text-[10px] text-neutral-400 font-normal">({VIETNAMESE_VOICE_PRESETS.length} giọng đọc)</span>
                   </label>
 
                   <div className="flex items-center gap-1 text-[10px]">
@@ -1417,7 +1435,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                       <button
                         key={r}
                         onClick={() => setRegionFilter(r)}
-                        className={`px-2 py-0.5 rounded-full transition-colors ${
+                        className={`px-2.5 py-0.5 rounded-full transition-colors cursor-pointer ${
                           regionFilter === r
                             ? 'bg-emerald-400 text-neutral-950 font-black'
                             : 'bg-neutral-800 text-neutral-400 hover:text-white'
@@ -1429,7 +1447,8 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Thanh ngang nhỏ cuộn mượt mà các giọng AI Studio */}
+                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5">
                   {VIETNAMESE_VOICE_PRESETS.filter((v) => {
                     if (regionFilter === 'all') return true;
                     return v.region.includes(regionFilter);
@@ -1443,46 +1462,48 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                           setSelectedVoiceId(v.id);
                           setIsGenerated(false);
                         }}
-                        className={`p-3 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
+                        className={`min-w-[150px] sm:min-w-[165px] max-w-[180px] p-2.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between shrink-0 ${
                           isSelected
-                            ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-lg shadow-emerald-500/10'
-                            : 'bg-[#141414] border-[#2c2c2c] hover:bg-[#1a1a1a] text-neutral-300'
+                            ? 'bg-emerald-500/20 border-emerald-400 text-white shadow-md shadow-emerald-500/15 ring-1 ring-emerald-400/50'
+                            : 'bg-[#141414] border-[#2c2c2c] hover:bg-[#1a1a1a] hover:border-neutral-700 text-neutral-300'
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xl">{v.avatarEmoji}</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 font-bold">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-lg">{v.avatarEmoji}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-neutral-300 font-semibold">
                               {v.region} • {v.gender === 'male' ? 'Nam' : 'Nữ'}
                             </span>
                           </div>
-                          <p className="text-xs font-bold truncate">{v.name}</p>
+                          <p className="text-xs font-bold truncate leading-tight">{v.name}</p>
                           <p className="text-[10px] text-neutral-400 truncate mt-0.5">{v.tag}</p>
                         </div>
 
-                        <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex items-center justify-between">
+                        <div className="mt-2 pt-1.5 border-t border-neutral-800/80 flex items-center justify-between gap-1">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePreviewVoice(v.id);
                             }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all ${
+                            className={`px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
                               isPreviewing
-                                ? 'bg-emerald-400 text-neutral-950 animate-pulse'
+                                ? 'bg-emerald-400 text-neutral-950 animate-pulse font-black'
                                 : 'bg-[#242424] hover:bg-emerald-500/20 text-neutral-300 hover:text-emerald-300'
                             }`}
                             title="Nghe thử giọng đọc mẫu trong 3 giây"
                           >
-                            <Play className="w-3 h-3 fill-current" />
-                            <span>{isPreviewing ? 'Đang đọc...' : 'Nghe thử 3s'}</span>
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                            <span>{isPreviewing ? 'Đang đọc...' : 'Thử 3s'}</span>
                           </button>
 
-                          {isSelected && (
-                            <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          {isSelected ? (
+                            <span className="text-[9px] font-black text-emerald-400 flex items-center gap-0.5">
+                              <Check className="w-3 h-3 stroke-[3]" />
                               <span>Đang chọn</span>
                             </span>
+                          ) : (
+                            <span className="text-[9px] text-neutral-600">Chọn</span>
                           )}
                         </div>
                       </div>
@@ -1490,9 +1511,10 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                   })}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-emerald-500/20">
+                {/* Điều chỉnh Tốc độ, Cao độ & Nhạc nền dạng hàng ngang gọn gàng */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-emerald-500/20">
                   <div>
-                    <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                    <div className="flex justify-between text-[10px] text-neutral-400 mb-0.5">
                       <span>Tốc độ đọc:</span>
                       <span className="font-bold text-white">{playbackRate}x</span>
                     </div>
@@ -1503,12 +1525,12 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                       step="0.05"
                       value={playbackRate}
                       onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                      className="w-full accent-emerald-400 cursor-pointer"
+                      className="w-full accent-emerald-400 cursor-pointer h-1.5"
                     />
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                    <div className="flex justify-between text-[10px] text-neutral-400 mb-0.5">
                       <span>Cao độ giọng:</span>
                       <span className="font-bold text-white">{pitch}x</span>
                     </div>
@@ -1519,12 +1541,12 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                       step="0.05"
                       value={pitch}
                       onChange={(e) => setPitch(Number(e.target.value))}
-                      className="w-full accent-emerald-400 cursor-pointer"
+                      className="w-full accent-emerald-400 cursor-pointer h-1.5"
                     />
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                    <div className="flex justify-between text-[10px] text-neutral-400 mb-0.5">
                       <span>Nhạc nền êm dịu:</span>
                     </div>
                     <select
@@ -1533,7 +1555,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                         setAmbience(e.target.value as any);
                         if (isPlaying) startAmbientMusic();
                       }}
-                      className="w-full bg-[#121212] border border-[#333] rounded-lg px-2 py-1 text-xs text-white outline-none"
+                      className="w-full bg-[#121212] border border-[#333] rounded-lg px-2 py-0.5 text-[11px] text-white outline-none cursor-pointer"
                     >
                       <option value="none">Không nhạc nền</option>
                       <option value="lofi">Lo-Fi Đọc Sách</option>
@@ -1545,28 +1567,29 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
               </div>
             )}
 
-            {/* --- CASE C: SÁCH MẪU & THÊM BẰNG VĂN BẢN (CHỈ ÁP DỤNG GIỌNG TRÌNH DUYỆT TẠO AUDIO NHANH) --- */}
+            {/* --- CASE C: TẠO BẰNG VĂN BẢN (CHỈ ÁP DỤNG GIỌNG TRÌNH DUYỆT TẠO AUDIO NHANH) --- */}
             {selectedCreationMode === 'sample-template' && (
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-blue-950/30 via-[#181818] to-[#141414] border border-blue-500/40 space-y-4">
+              <div className="p-3 sm:p-4 rounded-2xl bg-gradient-to-br from-blue-950/30 via-[#181818] to-[#141414] border border-blue-500/40 space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <label className="text-xs font-bold uppercase tracking-wider text-blue-300 flex items-center gap-2">
                       <Globe className="w-4 h-4 text-blue-400" />
-                      <span>Giọng Đọc Trình Duyệt (Web Speech - Tạo Audio Nhanh)</span>
+                      <span>Giọng Đọc Trình Duyệt (Web Speech)</span>
+                      <span className="text-[10px] text-neutral-400 font-normal">({BROWSER_VOICE_PRESETS.length} giọng đọc)</span>
                     </label>
-                    <p className="text-[11px] text-neutral-400 mt-0.5">
-                      Áp dụng giọng đọc trình duyệt chuẩn của máy: Tốc độ xử lý siêu tốc, không cần chờ mạng, nhẹ máy.
+                    <p className="text-[10px] text-neutral-400 mt-0.5">
+                      Tốc độ xử lý siêu tốc, không cần chờ mạng, nhẹ máy.
                     </p>
                   </div>
 
-                  <span className="text-[10px] px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold self-start sm:self-auto flex items-center gap-1">
+                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold self-start sm:self-auto flex items-center gap-1">
                     <Zap className="w-3 h-3 text-blue-400 fill-current" />
-                    <span>Tốc độ tức thì</span>
+                    <span>Tạo Nhanh</span>
                   </span>
                 </div>
 
-                {/* 4 Browser Voice Options Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Thanh ngang nhỏ cuộn ngang các giọng trình duyệt */}
+                <div className="flex items-stretch gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5">
                   {BROWSER_VOICE_PRESETS.map((v) => {
                     const isSelected = selectedVoiceId === v.id;
                     const isPreviewing = previewingVoiceId === v.id;
@@ -1577,47 +1600,49 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                           setSelectedVoiceId(v.id);
                           setIsGenerated(false);
                         }}
-                        className={`p-3 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between ${
+                        className={`min-w-[150px] sm:min-w-[165px] max-w-[180px] p-2.5 rounded-xl border text-left cursor-pointer transition-all flex flex-col justify-between shrink-0 ${
                           isSelected
-                            ? 'bg-blue-500/20 border-blue-400 text-white shadow-lg shadow-blue-500/10'
-                            : 'bg-[#141414] border-[#2c2c2c] hover:bg-[#1a1a1a] text-neutral-300'
+                            ? 'bg-blue-500/20 border-blue-400 text-white shadow-md shadow-blue-500/15 ring-1 ring-blue-400/50'
+                            : 'bg-[#141414] border-[#2c2c2c] hover:bg-[#1a1a1a] hover:border-neutral-700 text-neutral-300'
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-xl">{v.avatarEmoji}</span>
-                            <span className="text-[9px] px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 font-bold">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-lg">{v.avatarEmoji}</span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/10 text-neutral-300 font-semibold">
                               {v.gender === 'male' ? 'Nam' : 'Nữ'} • Web Speech
                             </span>
                           </div>
-                          <p className="text-xs font-bold truncate">{v.name}</p>
+                          <p className="text-xs font-bold truncate leading-tight">{v.name}</p>
                           <p className="text-[10px] text-neutral-400 truncate mt-0.5">{v.tag}</p>
                         </div>
 
                         {/* Direct 3s Preview Button with audible difference */}
-                        <div className="mt-2.5 pt-2 border-t border-neutral-800/80 flex items-center justify-between">
+                        <div className="mt-2 pt-1.5 border-t border-neutral-800/80 flex items-center justify-between gap-1">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handlePreviewVoice(v.id);
                             }}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 transition-all ${
+                            className={`px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 transition-all cursor-pointer ${
                               isPreviewing
-                                ? 'bg-blue-400 text-neutral-950 animate-pulse'
+                                ? 'bg-blue-400 text-neutral-950 animate-pulse font-black'
                                 : 'bg-[#242424] hover:bg-blue-500/20 text-neutral-300 hover:text-blue-300'
                             }`}
                             title="Nghe thử giọng đọc trình duyệt trong 3 giây"
                           >
-                            <Play className="w-3 h-3 fill-current" />
-                            <span>{isPreviewing ? 'Đang đọc...' : 'Nghe thử 3s'}</span>
+                            <Play className="w-2.5 h-2.5 fill-current" />
+                            <span>{isPreviewing ? 'Đang đọc...' : 'Thử 3s'}</span>
                           </button>
 
-                          {isSelected && (
-                            <span className="text-[10px] font-bold text-blue-400 flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          {isSelected ? (
+                            <span className="text-[9px] font-black text-blue-400 flex items-center gap-0.5">
+                              <Check className="w-3 h-3 stroke-[3]" />
                               <span>Đang chọn</span>
                             </span>
+                          ) : (
+                            <span className="text-[9px] text-neutral-600">Chọn</span>
                           )}
                         </div>
                       </div>
@@ -1626,9 +1651,9 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                 </div>
 
                 {/* Sliders: Speed & Pitch for Browser Voice */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-blue-500/20">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-blue-500/20">
                   <div>
-                    <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                    <div className="flex justify-between text-[10px] text-neutral-400 mb-0.5">
                       <span>Tốc độ đọc trình duyệt:</span>
                       <span className="font-bold text-white">{playbackRate}x</span>
                     </div>
@@ -1639,12 +1664,12 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                       step="0.05"
                       value={playbackRate}
                       onChange={(e) => setPlaybackRate(Number(e.target.value))}
-                      className="w-full accent-blue-400 cursor-pointer"
+                      className="w-full accent-blue-400 cursor-pointer h-1.5"
                     />
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-[11px] text-neutral-400 mb-1">
+                    <div className="flex justify-between text-[10px] text-neutral-400 mb-0.5">
                       <span>Cao độ giọng:</span>
                       <span className="font-bold text-white">{pitch}x</span>
                     </div>
@@ -1655,7 +1680,7 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                       step="0.05"
                       value={pitch}
                       onChange={(e) => setPitch(Number(e.target.value))}
-                      className="w-full accent-blue-400 cursor-pointer"
+                      className="w-full accent-blue-400 cursor-pointer h-1.5"
                     />
                   </div>
                 </div>
@@ -1737,6 +1762,28 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                   </>
                 )}
               </button>
+
+              {/* Post-generation banner if audio is ready */}
+              {isGenerated && (
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 via-emerald-950/60 to-[#181818] border border-emerald-500/40 flex items-center justify-between text-xs animate-in fade-in">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🎉</span>
+                    <span className="text-neutral-200 text-[11px] font-medium">
+                      Sách audio đã xuất xong! Bạn có thể tải WAV hoặc lưu vào kho sách.
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleSaveBook}
+                    className={`px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 border cursor-pointer ${
+                      isSaved
+                        ? 'bg-purple-950/80 border-purple-400 text-purple-200'
+                        : 'bg-purple-600 hover:bg-purple-500 border-purple-400 text-white'
+                    }`}
+                  >
+                    {isSaved ? '✓ Đã Lưu Kho' : '💾 Lưu Vào Kho Sách'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1921,8 +1968,8 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                     </button>
                   </div>
 
-                  {/* Download Action Buttons */}
-                  <div className="flex items-center gap-1.5">
+                  {/* Download & Save Action Buttons */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <button
                       onClick={() => handleDownloadAudiobook('chapter')}
                       disabled={!isGenerated}
@@ -1960,6 +2007,26 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
                         <span>Tải trọn bộ</span>
                       </button>
                     )}
+
+                    <button
+                      onClick={handleSaveBook}
+                      disabled={!isGenerated}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 border ${
+                        isGenerated
+                          ? isSaved
+                            ? 'bg-purple-950/80 border-purple-400 text-purple-200 cursor-pointer'
+                            : 'bg-purple-600 hover:bg-purple-500 border-purple-400 text-white cursor-pointer shadow-purple-900/40'
+                          : 'bg-neutral-900 text-neutral-600 border-neutral-800 cursor-not-allowed opacity-50'
+                      }`}
+                      title={
+                        isGenerated
+                          ? 'Lưu tác phẩm sách audio này vào Kho Sách'
+                          : 'Tạo sách audio trước khi lưu vào kho'
+                      }
+                    >
+                      {isSaved ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : <Save className="w-3.5 h-3.5" />}
+                      <span>{isSaved ? 'Đã Lưu Kho' : 'Lưu Vào Kho Sách'}</span>
+                    </button>
                   </div>
                 </div>
               </div>

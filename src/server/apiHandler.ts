@@ -606,6 +606,124 @@ YÊU CẦU:
     }
   }
 
+  // 4D. AI Music Style & Suno Beat Suggestion from Lyrics
+  if (pathname === '/api/gemini/suggest-music-style' && req.method === 'POST') {
+    try {
+      const { lyrics = '', title = '' } = await parseBody(req);
+      const cleanLyrics = String(lyrics).trim();
+
+      const ai = getGenAI();
+      if (!ai || !cleanLyrics) {
+        // Fallback intelligent heuristics based on lyrics keywords
+        const lower = cleanLyrics.toLowerCase();
+        let genre = 'acoustic_pop';
+        let genreName = 'Acoustic Pop Mộc Mạc';
+        let mood = 'êm dịu, ấm áp';
+        let singerVoice = 'nu_truyencam';
+        let singerVoiceName = 'Giọng Nữ Ấm Áp Truyền Cảm';
+        let durationSec = 180;
+        let durationLabel = '3 phút (180s) - Chuẩn bài hát phổ thông';
+        let bpm = 82;
+        let sunoBeatStyle = 'Suno Pop Kick-Snare & Acoustic Guitar';
+
+        if (lower.includes('ngủ') || lower.includes('ru') || lower.includes('đêm') || lower.includes('trăng')) {
+          genre = 'ru_ngu';
+          genreName = 'Giai Điệu Ru Ngủ Êm Đềm';
+          mood = 'êm dịu, ấm áp';
+          singerVoice = 'nu_truyencam';
+          singerVoiceName = 'Giọng Nữ Dịu Dàng Ru Ngủ';
+          durationSec = 210;
+          durationLabel = '3.5 phút (210s) - Êm dịu ru bé ngủ say';
+          bpm = 66;
+          sunoBeatStyle = 'Lullaby Celestial Bells & Gentle Chords';
+        } else if (lower.includes('vui') || lower.includes('cười') || lower.includes('nhảy') || lower.includes('hát vang')) {
+          genre = 'vui_nhon';
+          genreName = 'Pop Vui Nhộn & Sôi Động';
+          mood = 'vui tươi, rộn ràng';
+          singerVoice = 'song_ca';
+          singerVoiceName = 'Song Ca Nam Nữ Hòa Âm Sôi Động';
+          durationSec = 150;
+          durationLabel = '2.5 phút (150s) - Tiết tấu tươi vui lôi cuốn';
+          bpm = 118;
+          sunoBeatStyle = 'Suno Upbeat Dance-Pop & Punchy Kick';
+        } else if (lower.includes('sách') || lower.includes('học') || lower.includes('mưa') || lower.includes('cà phê')) {
+          genre = 'lofi_read';
+          genreName = 'Lo-Fi Chill Đọc Sách';
+          mood = 'thư giãn, tĩnh tại';
+          singerVoice = 'acoustic_live';
+          singerVoiceName = 'Giọng Mộc Live Acoustic Suno';
+          durationSec = 180;
+          durationLabel = '3 phút (180s) - Thư thái đồng hành';
+          bpm = 76;
+          sunoBeatStyle = 'Lofi Chillhop Vinyl Snare & Sub-Bass';
+        }
+
+        return sendJson(res, 200, {
+          genre,
+          genreName,
+          mood,
+          singerVoice,
+          singerVoiceName,
+          durationSec,
+          durationLabel,
+          bpm,
+          sunoBeatStyle,
+          reason: 'Phân tích từ khóa cảm xúc trong lời bài hát theo phong cách hòa âm Suno AI.',
+        });
+      }
+
+      const prompt = `Bạn là chuyên gia sản xuất âm nhạc AI hàng đầu theo tiêu chuẩn ứng dụng Suno AI.
+Hãy phân tích lời bài hát sau đây và gợi ý phong cách sản xuất hoàn hảo:
+"""
+Tiêu đề: ${title || 'Chưa đặt tên'}
+Lời bài hát:
+${cleanLyrics.slice(0, 3000)}
+"""
+
+YÊU CẦU:
+1. "genre": Chọn 1 trong các mã thể loại chính xác: "ru_ngu", "lofi_read", "vui_nhon", "co_tich", "thien_dinh", "acoustic_pop".
+2. "genreName": Tên thể loại tiếng Việt mượt mà (ví dụ: "Pop Ballad Trữ Tình", "Lo-Fi Acoustic Chill", "Nhạc Thiếu Nhi Rộn Ràng", "Dân Ca Hiện Đại").
+3. "mood": Tâm trạng phù hợp (ví dụ: "êm dịu, ấm áp", "vui tươi, rộn ràng", "sâu lắng, da diết", "mộng mơ, huyền diệu").
+4. "singerVoice": Chọn 1 trong các mã: "nu_truyencam", "nam_tram", "song_ca", "acoustic_live", "tre_tho", "instrumental".
+5. "singerVoiceName": Tên phong cách giọng hát (ví dụ: "Giọng Nữ Ấm Áp Truyền Cảm", "Giọng Nam Trầm Lắng Baritone", "Song Ca Nam Nữ Hòa Âm").
+6. "durationSec": Độ dài bài hát thông thường từ 2 đến 5 phút (chọn 1 trong các số: 120, 150, 180, 210, 240, 300).
+7. "durationLabel": Nhãn hiển thị độ dài (ví dụ: "3 phút (180s) - Thời lượng chuẩn Pop Ballad").
+8. "bpm": Nhịp điệu BPM thích hợp (từ 60 đến 128).
+9. "sunoBeatStyle": Gợi ý nhịp điệu và beat học từ ứng dụng Suno AI (ví dụ: "Suno Modern Pop Kick-Snare & Sub-Bass", "Acoustic Fingerpicking & Soft Cajon", "Lofi Chillhop Vinyl Snare", "Ballad Slow Rock 6/8").
+10. "reason": Giải thích ngắn gọn 1-2 câu lý do vì sao phong cách này tôn vinh lời ca.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              genre: { type: Type.STRING },
+              genreName: { type: Type.STRING },
+              mood: { type: Type.STRING },
+              singerVoice: { type: Type.STRING },
+              singerVoiceName: { type: Type.STRING },
+              durationSec: { type: Type.INTEGER },
+              durationLabel: { type: Type.STRING },
+              bpm: { type: Type.INTEGER },
+              sunoBeatStyle: { type: Type.STRING },
+              reason: { type: Type.STRING },
+            },
+            required: ['genre', 'genreName', 'mood', 'singerVoice', 'durationSec', 'bpm', 'sunoBeatStyle'],
+          },
+        },
+      });
+
+      const parsed = JSON.parse(response.text || '{}');
+      return sendJson(res, 200, parsed);
+    } catch (err: any) {
+      console.error('Error in /api/gemini/suggest-music-style:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi khi gợi ý phong cách nhạc' });
+    }
+  }
+
   // 5. User Email & Username / Password Authentication
   if (pathname === '/api/auth/login' && req.method === 'POST') {
     try {
