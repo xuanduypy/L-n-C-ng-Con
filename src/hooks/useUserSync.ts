@@ -17,24 +17,19 @@ export function useUserSync(
       const saved = localStorage.getItem(STORAGE_USER_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        const isAdmin = parsed.email?.trim().toLowerCase() === ADMIN_SUPER_EMAIL;
-        return {
-          ...parsed,
-          role: isAdmin ? 'admin' : 'user',
-          isAdmin,
-        };
+        if (parsed && parsed.isLoggedIn) {
+          const isAdmin = parsed.email?.trim().toLowerCase() === ADMIN_SUPER_EMAIL;
+          return {
+            ...parsed,
+            role: isAdmin ? 'admin' : 'user',
+            isAdmin,
+            isLoggedIn: true,
+          };
+        }
       }
     } catch {}
-    // Default user account: xuanduy.cn@gmail.com with Super Admin rights
-    return {
-      id: 'usr-admin-xuanduy',
-      email: ADMIN_SUPER_EMAIL,
-      name: 'Xuân Duy (Admin)',
-      role: 'admin',
-      isAdmin: true,
-      isLoggedIn: true,
-      lastSyncedAt: Date.now(),
-    };
+    // Default: Guest mode (Chưa đăng nhập)
+    return null;
   });
 
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -292,6 +287,31 @@ export function useUserSync(
     [onDataMerged, user]
   );
 
+  // Password Recovery / Reset (Quên pass phục hồi)
+  const resetPassword = useCallback(async (identifier: string, newPass: string) => {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: identifier.includes('@') ? identifier.trim() : undefined,
+          username: !identifier.includes('@') ? identifier.trim() : undefined,
+          newPassword: newPass.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Đặt lại mật khẩu thất bại' };
+      }
+      if (data.user) {
+        setUser(data.user);
+      }
+      return { success: true, message: data.message };
+    } catch (e: any) {
+      return { success: false, error: e.message || 'Lỗi mạng khi phục hồi mật khẩu' };
+    }
+  }, []);
+
   return {
     user,
     syncStatus,
@@ -299,6 +319,7 @@ export function useUserSync(
     loginWithEmail,
     loginWithCredentials,
     updateProfile,
+    resetPassword,
     logout,
     syncCloudData,
   };

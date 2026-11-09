@@ -30,6 +30,8 @@ interface AIMusicStudioProps {
   onSaveTrackToLibrary: (track: MusicTrack) => void;
   savedTracks?: MusicTrack[];
   initialTrack?: MusicTrack | null;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 const QUICK_PROMPTS = [
@@ -53,6 +55,8 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
   onSaveTrackToLibrary,
   savedTracks = [],
   initialTrack = null,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const [prompt, setPrompt] = useState(initialTrack?.title || '');
   const [selectedGenre, setSelectedGenre] = useState<any>(initialTrack?.category || 'ru_ngu');
@@ -255,12 +259,20 @@ export const AIMusicStudio: React.FC<AIMusicStudioProps> = ({
   // Download Audio
   const handleDownload = () => {
     if (!currentTrack) return;
+    if (!isLoggedIn) {
+      onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải bài hát WAV về máy.');
+      return;
+    }
     downloadAudioBlob(currentTrack.audioBlob, `${currentTrack.title.replace(/\s+/g, '_')}_DiNo_Music.wav`);
   };
 
   // Save to Library (Prominent button as requested by user)
   const handleSaveToLibrary = () => {
     if (!currentTrack) return;
+    if (!isLoggedIn) {
+      onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để lưu bài hát vào Kho Nhạc của bạn.');
+      return;
+    }
 
     const newMusicTrack: MusicTrack = {
       id: currentTrack.id,

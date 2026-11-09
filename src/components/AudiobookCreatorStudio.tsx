@@ -43,6 +43,8 @@ interface AudiobookCreatorStudioProps {
   userVoiceProfiles?: UserVoiceProfile[];
   onOpenVoiceTraining?: () => void;
   initialBook?: Book | null;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 // Acoustic specifications for distinct voice timbres (audible differences)
@@ -249,6 +251,8 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
   userVoiceProfiles = [],
   onOpenVoiceTraining,
   initialBook = null,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   // Mode selection: null = landing choice screen, otherwise the specific creation flow
   const [selectedCreationMode, setSelectedCreationMode] = useState<
@@ -811,6 +815,10 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
 
   // Instant Download of Audiobook (WAV format)
   const handleDownloadAudiobook = (scope: 'chapter' | 'all' = 'chapter') => {
+    if (!isLoggedIn) {
+      onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file sách nói WAV chất lượng cao.');
+      return;
+    }
     if (!isGenerated || !generatedAudioBlob) {
       setErrorMessage('⚠️ Vui lòng bấm "🎧 Bắt Đầu Tạo Sách Audio" để xuất âm thanh trước khi tải về.');
       setTimeout(() => setErrorMessage(null), 4000);
@@ -828,6 +836,10 @@ export const AudiobookCreatorStudio: React.FC<AudiobookCreatorStudioProps> = ({
 
   // Save Book to Library
   const handleSaveBook = () => {
+    if (!isLoggedIn) {
+      onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để lưu sách nói vào Kho Sách của bạn.');
+      return;
+    }
     if (!isGenerated) {
       setErrorMessage('⚠️ Vui lòng bấm "🎧 Bắt Đầu Tạo Sách Audio" để tạo sách trước khi lưu vào kho.');
       setTimeout(() => setErrorMessage(null), 4000);

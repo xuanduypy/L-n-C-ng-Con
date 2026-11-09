@@ -26,6 +26,8 @@ interface BookLibraryViewProps {
   onRemixBook?: (book: Book) => void;
   onDeleteBook?: (bookId: string) => void;
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
@@ -39,6 +41,8 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
   onRemixBook,
   onDeleteBook,
   isAdmin = false,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('Tất cả');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -272,7 +276,13 @@ export const BookLibraryView: React.FC<BookLibraryViewProps> = ({
                         title={book.title}
                         subtitle={book.author}
                         type="book"
-                        onDownload={() => downloadBookAudio(book)}
+                        onDownload={() => {
+                          if (!isLoggedIn) {
+                            onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file sách nói WAV.');
+                            return;
+                          }
+                          downloadBookAudio(book);
+                        }}
                         onRemix={() => onRemixBook?.(book)}
                         onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
                         isAdmin={isAdmin}

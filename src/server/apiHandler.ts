@@ -881,6 +881,83 @@ YÊU CẦU:
     }
   }
 
+  // 5C. Password Recovery / Reset (Quên pass phục hồi)
+  if (pathname === '/api/auth/reset-password' && req.method === 'POST') {
+    try {
+      const { email = '', username = '', newPassword = '' } = await parseBody(req);
+      const cleanEmail = String(email).trim().toLowerCase();
+      const cleanUser = String(username).trim().toLowerCase();
+      const cleanPass = String(newPassword).trim();
+
+      if (!cleanPass) {
+        return sendJson(res, 400, { error: 'Vui lòng nhập mật khẩu mới' });
+      }
+
+      let targetUser: UserCloudData | null = null;
+      let targetEmail = '';
+
+      if (cleanEmail && cleanEmail.includes('@')) {
+        targetUser = cloudSyncStore.get(cleanEmail) || null;
+        targetEmail = cleanEmail;
+      } else if (cleanUser) {
+        for (const [em, data] of cloudSyncStore.entries()) {
+          if (data.username && data.username.toLowerCase() === cleanUser) {
+            targetUser = data;
+            targetEmail = em;
+            break;
+          }
+        }
+      }
+
+      if (!targetUser) {
+        // If it's admin or new email recovery
+        if (cleanEmail) {
+          targetEmail = cleanEmail;
+          targetUser = {
+            email: cleanEmail,
+            name: cleanEmail.split('@')[0],
+            username: cleanEmail.split('@')[0],
+            password: cleanPass,
+            zodiacId: cleanEmail === ADMIN_EMAIL ? 'thin' : 'mao',
+            zodiacEmoji: cleanEmail === ADMIN_EMAIL ? '🐲' : '🐱',
+            books: [],
+            customTracks: [],
+            userProfiles: [],
+            lastSyncedAt: Date.now(),
+          };
+          cloudSyncStore.set(cleanEmail, targetUser);
+          persistCacheToDisk();
+        } else {
+          return sendJson(res, 404, { error: 'Không tìm thấy tài khoản với email hoặc tên use này' });
+        }
+      } else {
+        targetUser.password = cleanPass;
+        targetUser.lastSyncedAt = Date.now();
+        cloudSyncStore.set(targetEmail, targetUser);
+        persistCacheToDisk();
+      }
+
+      const isSuperAdmin = targetEmail === ADMIN_EMAIL;
+      return sendJson(res, 200, {
+        success: true,
+        message: 'Đặt lại mật khẩu thành công! Bạn có thể dùng mật khẩu mới này để đăng nhập.',
+        user: {
+          id: `usr-${targetEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          email: targetEmail,
+          name: targetUser.name,
+          username: targetUser.username,
+          hasPassword: true,
+          role: isSuperAdmin ? 'admin' : 'user',
+          isAdmin: isSuperAdmin,
+          isLoggedIn: true,
+        },
+      });
+    } catch (err: any) {
+      console.error('Error in /api/auth/reset-password:', err);
+      return sendJson(res, 500, { error: err.message || 'Lỗi phục hồi mật khẩu' });
+    }
+  }
+
   // 6. Cloud Data Sync (Sync across Web, Mobile & PWA APK)
   if (pathname === '/api/sync/data') {
     // GET: Retrieve cloud saved books, custom music & voice profiles

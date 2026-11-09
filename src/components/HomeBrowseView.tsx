@@ -30,6 +30,8 @@ interface HomeBrowseViewProps {
   onDeleteBook?: (bookId: string) => void;
   onDeleteTrack?: (trackId: string) => void;
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
@@ -53,6 +55,8 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
   onDeleteBook,
   onDeleteTrack,
   isAdmin = false,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
 
@@ -160,7 +164,13 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                         title={book.title}
                         subtitle={book.author}
                         type="book"
-                        onDownload={() => downloadBookAudio(book)}
+                        onDownload={() => {
+                          if (!isLoggedIn) {
+                            onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file sách nói WAV.');
+                            return;
+                          }
+                          downloadBookAudio(book);
+                        }}
                         onRemix={() => onRemixBook?.(book)}
                         onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
                         isAdmin={isAdmin}
@@ -288,7 +298,13 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                         title={track.title}
                         subtitle={track.artist}
                         type="music"
-                        onDownload={() => downloadTrackAudio(track)}
+                        onDownload={() => {
+                          if (!isLoggedIn) {
+                            onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file bài hát WAV.');
+                            return;
+                          }
+                          downloadTrackAudio(track);
+                        }}
                         onRemix={() => onRemixTrack?.(track)}
                         onDelete={onDeleteTrack ? () => onDeleteTrack(track.id) : undefined}
                         isAdmin={isAdmin}
@@ -351,6 +367,8 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                   onRemix={() => onRemixBook?.(book)}
                   onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
                   isAdmin={isAdmin}
+                  isLoggedIn={isLoggedIn}
+                  onRequireLogin={onRequireLogin}
                 />
               ))}
             </div>
@@ -404,6 +422,8 @@ export const HomeBrowseView: React.FC<HomeBrowseViewProps> = ({
                   onRemix={() => onRemixBook?.(book)}
                   onDelete={onDeleteBook ? () => onDeleteBook(book.id) : undefined}
                   isAdmin={isAdmin}
+                  isLoggedIn={isLoggedIn}
+                  onRequireLogin={onRequireLogin}
                 />
               ))}
             </div>
@@ -423,6 +443,8 @@ interface BookCardProps {
   onRemix?: () => void;
   onDelete?: () => void;
   isAdmin?: boolean;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 const BookCard: React.FC<BookCardProps> = ({
@@ -434,6 +456,8 @@ const BookCard: React.FC<BookCardProps> = ({
   onRemix,
   onDelete,
   isAdmin = false,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const isPlayingThis = isCurrentActive && isPlaying;
 
@@ -511,7 +535,13 @@ const BookCard: React.FC<BookCardProps> = ({
             title={book.title}
             subtitle={book.author}
             type="book"
-            onDownload={() => downloadBookAudio(book)}
+            onDownload={() => {
+              if (!isLoggedIn) {
+                onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file sách nói WAV.');
+                return;
+              }
+              downloadBookAudio(book);
+            }}
             onRemix={() => onRemix?.()}
             onDelete={onDelete}
             isAdmin={isAdmin}

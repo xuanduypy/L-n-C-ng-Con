@@ -6,6 +6,7 @@ import {
   BookOpen,
   Music,
   LayoutGrid,
+  User,
 } from 'lucide-react';
 import { Book, ViewMode, UserAccount, ZODIAC_ANIMALS } from '../types/book';
 
@@ -42,34 +43,54 @@ export const SpotifySidebar: React.FC<SpotifySidebarProps> = ({
 
   return (
     <aside className="hidden md:flex w-64 md:w-72 bg-black flex-col h-full select-none border-r border-[#1f1f1f] text-[#b3b3b3] p-2 gap-2 shrink-0">
-      {/* 1. Ảnh đại diện người dùng & Menu Cài đặt (Vị trí cũ) */}
+      {/* 1. Ảnh đại diện người dùng & Menu Cài đặt / Đăng nhập */}
       <button
         onClick={onOpenUserAccount}
-        className="bg-[#121212] hover:bg-[#1a1a1a] p-3 rounded-2xl flex items-center gap-3 transition-colors border border-neutral-800/80 text-left group shadow-md"
-        title="Tài khoản & Cài đặt DiNo"
+        className="bg-[#121212] hover:bg-[#1a1a1a] p-3 rounded-2xl flex items-center gap-3 transition-colors border border-neutral-800/80 text-left group shadow-md cursor-pointer"
+        title={user?.isLoggedIn ? 'Hồ sơ & Cài đặt DiNo' : 'Đăng nhập tài khoản'}
       >
-        <div
-          className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${
-            user?.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
-          } flex items-center justify-center text-xl shadow-md shrink-0 border border-white/20 group-hover:scale-105 transition-transform`}
-        >
-          {user?.zodiacEmoji || (user?.isAdmin ? '👑' : currentZodiac.emoji)}
-        </div>
-        <div className="flex flex-col min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="font-black text-white text-xs truncate group-hover:text-amber-400 transition-colors">
-              {user?.name ? user.name.replace(/\s*\(Admin\)/i, '') : (user?.isAdmin ? 'Xuân Duy' : 'DiNo Studio')}
-            </span>
-            {user?.isAdmin && (
-              <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider">
-                ADMIN
+        {user?.isLoggedIn ? (
+          <>
+            <div
+              className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${
+                user.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
+              } flex items-center justify-center text-xl shadow-md shrink-0 border border-white/20 group-hover:scale-105 transition-transform`}
+            >
+              {user.zodiacEmoji || (user.isAdmin ? '👑' : currentZodiac.emoji)}
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-white text-xs truncate group-hover:text-amber-400 transition-colors">
+                  {user.name ? user.name.replace(/\s*\(Admin\)/i, '') : (user.isAdmin ? 'Xuân Duy' : 'Thành viên')}
+                </span>
+                {user.isAdmin && (
+                  <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider uppercase">
+                    ADMIN
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] text-neutral-400 truncate mt-0.5 font-medium">
+                {user.isAdmin ? 'Quản trị viên' : user.username ? `@${user.username}` : user.email || 'Cài đặt & Hồ sơ'}
               </span>
-            )}
-          </div>
-          <span className="text-[10px] text-neutral-400 truncate mt-0.5 font-medium">
-            Cài đặt & Hồ sơ
-          </span>
-        </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="w-10 h-10 rounded-xl bg-[#202020] border border-neutral-700/80 flex items-center justify-center text-amber-400 shadow-md shrink-0 group-hover:scale-105 group-hover:border-amber-400 transition-all">
+              <User className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="flex flex-col min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="font-black text-amber-400 text-xs tracking-wide">
+                  Đăng nhập
+                </span>
+              </div>
+              <span className="text-[10px] text-neutral-400 truncate mt-0.5 font-medium">
+                Nhấn để đăng nhập / đăng ký
+              </span>
+            </div>
+          </>
+        )}
       </button>
 
       {/* Top Nav Section */}
@@ -173,7 +194,7 @@ export const SpotifySidebar: React.FC<SpotifySidebarProps> = ({
 
             <button
               onClick={onNavigateVoiceTraining}
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl font-bold text-xs transition-all text-left ${
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl font-bold text-xs transition-all text-left cursor-pointer ${
                 currentView === 'voice-training'
                   ? 'text-neutral-950 bg-purple-400 shadow-md'
                   : 'text-neutral-300 hover:text-white hover:bg-neutral-900'
@@ -182,7 +203,14 @@ export const SpotifySidebar: React.FC<SpotifySidebarProps> = ({
               <Headphones
                 className={`w-4 h-4 ${currentView === 'voice-training' ? 'text-black' : 'text-purple-400'}`}
               />
-              <span className="flex-1">Huấn Luyện Giọng</span>
+              <span className="flex-1">Phòng Thu</span>
+              <span
+                className={`text-[9px] px-1.5 py-0.5 rounded font-black ${
+                  currentView === 'voice-training' ? 'bg-black text-purple-300' : 'bg-purple-400/20 text-purple-300'
+                }`}
+              >
+                LIVE
+              </span>
             </button>
           </nav>
         </div>

@@ -36,6 +36,8 @@ interface MusicLibraryViewProps {
   onToggleFavoriteTrack: (trackId: string) => void;
   onOpenLyrics: (track: MusicTrack) => void;
   onRemixTrack?: (track: MusicTrack) => void;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
@@ -53,6 +55,8 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
   onToggleFavoriteTrack,
   onOpenLyrics,
   onRemixTrack,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const [selectedFilter, setSelectedFilter] = useState<string>('Tất cả');
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
@@ -559,7 +563,13 @@ export const MusicLibraryView: React.FC<MusicLibraryViewProps> = ({
                         title={track.title}
                         subtitle={track.artist}
                         type="music"
-                        onDownload={() => downloadTrackAudio(track)}
+                        onDownload={() => {
+                          if (!isLoggedIn) {
+                            onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file bài hát WAV.');
+                            return;
+                          }
+                          downloadTrackAudio(track);
+                        }}
                         onRemix={() => onRemixTrack?.(track)}
                         onDelete={() => onDeleteTrack(track.id)}
                         isAdmin={isAdmin}

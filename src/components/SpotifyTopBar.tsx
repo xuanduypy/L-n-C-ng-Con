@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   ChevronLeft,
   Search,
+  User,
 } from 'lucide-react';
-import { VoiceSettings, UserAccount, ViewMode } from '../types/book';
+import { VoiceSettings, UserAccount, ViewMode, ZODIAC_ANIMALS } from '../types/book';
 
 interface SpotifyTopBarProps {
   currentView: ViewMode;
@@ -30,9 +31,12 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
   onNavigateBack,
   onNavigateForward,
   onOpenAddModal,
+  onOpenUserAccount,
+  user,
   headerBgOpacity = 0.85,
 }) => {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const currentZodiac = ZODIAC_ANIMALS.find((z) => z.id === user?.zodiacId) || ZODIAC_ANIMALS[0];
 
   const isSubView = currentView === 'book-detail';
 
@@ -117,14 +121,35 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
               )}
             </div>
 
-            {/* Right: Search */}
-            <div className="flex items-center shrink-0">
+            {/* Right: Search + User Avatar / Login */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setMobileSearchOpen(true)}
                 className="p-2 rounded-full bg-[#222222] text-neutral-300 active:scale-95"
                 title="Tìm kiếm"
               >
                 <Search className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={onOpenUserAccount}
+                className="flex items-center justify-center p-0.5 rounded-full active:scale-95 transition-transform"
+                title={user?.isLoggedIn ? (user.name || 'Hồ sơ') : 'Đăng nhập'}
+              >
+                {user?.isLoggedIn ? (
+                  <div
+                    className={`w-7 h-7 rounded-full bg-gradient-to-tr ${
+                      user.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
+                    } flex items-center justify-center text-sm shadow-sm border border-white/20`}
+                  >
+                    {user.zodiacEmoji || (user.isAdmin ? '👑' : currentZodiac.emoji)}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-400 text-black text-xs font-black shadow-sm">
+                    <User className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Đăng nhập</span>
+                  </div>
+                )}
               </button>
             </div>
           </>
@@ -135,7 +160,6 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
       <div className="hidden md:flex items-center justify-between w-full">
         {/* Left: Library Tabs (Tất cả, Kho sách, Kho nhạc) */}
         <div className="flex items-center shrink-0">
-          {/* Library Tabs on TopBar: Tất cả, Kho sách, Kho nhạc */}
           <div className="flex items-center gap-1 p-1 bg-[#181818] rounded-full border border-neutral-800/80">
             {navTabs.map((tab) => {
               const isActive = currentView === tab.id;
@@ -176,8 +200,41 @@ export const SpotifyTopBar: React.FC<SpotifyTopBarProps> = ({
           )}
         </div>
 
-        {/* Right slot spacer for visual balance */}
-        <div className="w-8 shrink-0" />
+        {/* Right: User Avatar / Login Button */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={onOpenUserAccount}
+            className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-[#202020] hover:bg-[#282828] border border-neutral-800 hover:border-neutral-700 active:scale-95 transition-all text-left group cursor-pointer"
+            title={user?.isLoggedIn ? 'Hồ sơ cá nhân & Cài đặt' : 'Đăng nhập tài khoản'}
+          >
+            {user?.isLoggedIn ? (
+              <>
+                <div
+                  className={`w-7 h-7 rounded-full bg-gradient-to-tr ${
+                    user.isAdmin ? 'from-amber-400 to-yellow-500 text-black' : currentZodiac.color
+                  } flex items-center justify-center text-sm shadow-sm border border-white/20 shrink-0 group-hover:scale-105 transition-transform`}
+                >
+                  {user.zodiacEmoji || (user.isAdmin ? '👑' : currentZodiac.emoji)}
+                </div>
+                <div className="flex items-center gap-1.5 max-w-[150px]">
+                  <span className="text-xs font-bold text-white truncate group-hover:text-amber-400 transition-colors">
+                    {user.name?.replace(/\s*\(Admin\)/i, '') || (user.isAdmin ? 'Xuân Duy' : 'Thành viên')}
+                  </span>
+                  {user.isAdmin && (
+                    <span className="text-[9px] bg-amber-400 text-black px-1.5 py-0.2 rounded font-black tracking-wider uppercase shrink-0">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-amber-400 group-hover:text-amber-300">
+                <User className="w-4 h-4 text-amber-400" />
+                <span>Đăng nhập</span>
+              </div>
+            )}
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -78,6 +78,12 @@ export default function App() {
   const [isUserAccountOpen, setIsUserAccountOpen] = useState<boolean>(false);
   const [remixBook, setRemixBook] = useState<Book | null>(null);
   const [remixTrack, setRemixTrack] = useState<MusicTrack | null>(null);
+  const [loginNotice, setLoginNotice] = useState<string | null>(null);
+
+  const handleRequireLogin = (message?: string) => {
+    setLoginNotice(message || 'Vui lòng đăng nhập tài khoản thành viên để tải file và đồng bộ đám mây.');
+    setIsUserAccountOpen(true);
+  };
 
   // 5. Audio Hooks (Books & Music)
   const bookAudio = useBookAudioPlayer(books);
@@ -443,6 +449,8 @@ export default function App() {
                   handleAddBook(newBook);
                 }}
                 onOpenVoiceTraining={() => navigateTo('voice-training')}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
 
@@ -460,6 +468,8 @@ export default function App() {
                   );
                 }}
                 savedTracks={musicAudio.tracks}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
 
@@ -505,6 +515,8 @@ export default function App() {
                 onDeleteBook={handleDeleteBook}
                 onDeleteTrack={handleDeleteTrack}
                 isAdmin={isAdmin}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
 
@@ -524,6 +536,8 @@ export default function App() {
                 onRemixBook={handleRemixBook}
                 onDeleteBook={handleDeleteBook}
                 isAdmin={isAdmin}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
 
@@ -554,6 +568,8 @@ export default function App() {
                 onDeleteBook={handleDeleteBook}
                 onDeleteChapter={handleDeleteChapter}
                 onRemixBook={handleRemixBook}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
 
@@ -578,6 +594,8 @@ export default function App() {
                 onToggleFavoriteTrack={musicAudio.toggleFavoriteTrack}
                 onOpenLyrics={(track) => setSelectedTrackForLyrics(track)}
                 onRemixTrack={handleRemixTrack}
+                isLoggedIn={Boolean(userSync.user?.isLoggedIn)}
+                onRequireLogin={handleRequireLogin}
               />
             )}
           </div>
@@ -712,7 +730,10 @@ export default function App() {
       {/* User Account & App Settings Modal (Clicking on user icon opens this) */}
       <UserAccountModal
         isOpen={isUserAccountOpen}
-        onClose={() => setIsUserAccountOpen(false)}
+        onClose={() => {
+          setIsUserAccountOpen(false);
+          setLoginNotice(null);
+        }}
         user={userSync.user}
         syncStatus={userSync.syncStatus}
         lastSyncedAt={userSync.lastSyncedAt}
@@ -722,6 +743,7 @@ export default function App() {
         onLogin={userSync.loginWithEmail}
         onLoginWithCredentials={userSync.loginWithCredentials}
         onUpdateProfile={userSync.updateProfile}
+        onResetPassword={userSync.resetPassword}
         onLogout={userSync.logout}
         onOpenVoiceSettings={() => navigateTo('voice-training')}
         totalBooksCount={books.length}
@@ -734,6 +756,7 @@ export default function App() {
         sleepTimerFormatted={sleepTimer.formattedTime}
         onSetSleepTimer={sleepTimer.setTimer}
         voiceSettings={bookAudio.voiceSettings}
+        initialNotice={loginNotice}
       />
 
       {/* Dedicated Mobile Bottom Navigation (4 ergonomic studio tabs, no redundant settings button) */}

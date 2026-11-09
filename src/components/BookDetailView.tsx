@@ -30,6 +30,8 @@ interface BookDetailViewProps {
   onDeleteBook: (bookId: string) => void;
   onDeleteChapter: (bookId: string, chapterId: string) => void;
   onRemixBook?: (book: Book) => void;
+  isLoggedIn?: boolean;
+  onRequireLogin?: (message?: string) => void;
 }
 
 export const BookDetailView: React.FC<BookDetailViewProps> = ({
@@ -45,6 +47,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   onDeleteBook,
   onDeleteChapter,
   onRemixBook,
+  isLoggedIn = false,
+  onRequireLogin,
 }) => {
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'book' | 'chapter';
@@ -181,7 +185,13 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               title={book.title}
               subtitle={book.author}
               type="book"
-              onDownload={() => downloadBookAudio(book)}
+              onDownload={() => {
+                if (!isLoggedIn) {
+                  onRequireLogin?.('Vui lòng đăng nhập tài khoản thành viên để tải file sách nói WAV.');
+                  return;
+                }
+                downloadBookAudio(book);
+              }}
               onRemix={() => onRemixBook?.(book)}
               onDelete={() => onDeleteBook(book.id)}
               isAdmin={isAdmin}

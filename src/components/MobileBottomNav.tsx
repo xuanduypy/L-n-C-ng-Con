@@ -65,7 +65,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <span className="text-[10px] mt-1 font-semibold">Tạo Nhạc AI</span>
       </button>
 
-      {/* 4. Luyện Giọng */}
+      {/* 4. Phòng Thu */}
       <button
         onClick={onNavigateVoiceTraining}
         className={`flex flex-col items-center justify-center flex-1 h-full py-1 px-1 rounded-xl transition-all active:scale-95 ${
@@ -73,7 +73,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         }`}
       >
         <Headphones className={`w-5 h-5 ${isVoice ? 'text-purple-400 stroke-[2.5]' : ''}`} />
-        <span className="text-[10px] mt-1 font-semibold">Luyện Giọng</span>
+        <span className="text-[10px] mt-1 font-semibold">Phòng Thu</span>
       </button>
     </nav>
   );
