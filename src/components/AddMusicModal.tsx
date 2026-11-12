@@ -3,18 +3,18 @@ import {
   X,
   Music,
   Upload,
-  Link as LinkIcon,
-  Sparkles,
   Check,
-  Disc,
   FileAudio,
   AlertCircle,
   Play,
   Pause,
   Volume2,
+  Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { MusicTrack } from '../types/book';
 import { storeAudioBlob } from '../utils/audioVault';
+import { recognizeAudioMetadata, ParsedAudioMetadata } from '../utils/audioMetadataParser';
 
 interface AddMusicModalProps {
   isOpen: boolean;
@@ -31,70 +31,18 @@ const GRADIENT_PRESETS = [
   { id: 'indigo', label: 'Chàm Huyền Ảo', class: 'from-indigo-600 via-slate-900 to-[#121212]', bg: '#4f46e5' },
 ];
 
-const MELODY_TEMPLATES = [
-  {
-    id: 'lullaby',
-    name: 'Giai Điệu Hộp Nhạc Ru Bé Ngủ',
-    notes: [
-      { note: 'G4', duration: 0.6 },
-      { note: 'E4', duration: 0.6 },
-      { note: 'G4', duration: 0.6 },
-      { note: 'C5', duration: 1.0 },
-      { note: 'A4', duration: 0.6 },
-      { note: 'G4', duration: 0.6 },
-      { note: 'E4', duration: 0.8 },
-      { note: 'D4', duration: 0.6 },
-      { note: 'C4', duration: 1.2 },
-    ],
-    durationSec: 60,
-  },
-  {
-    id: 'cheerful',
-    name: 'Giai Điệu Thiếu Nhi Vui Tươi',
-    notes: [
-      { note: 'C4', duration: 0.35 },
-      { note: 'E4', duration: 0.35 },
-      { note: 'G4', duration: 0.35 },
-      { note: 'C5', duration: 0.7 },
-      { note: 'B4', duration: 0.35 },
-      { note: 'A4', duration: 0.35 },
-      { note: 'G4', duration: 0.7 },
-      { note: 'F4', duration: 0.35 },
-      { note: 'E4', duration: 0.35 },
-      { note: 'D4', duration: 0.35 },
-      { note: 'C4', duration: 0.7 },
-    ],
-    durationSec: 45,
-  },
-  {
-    id: 'sweet',
-    name: 'Giai Điệu Nhẹ Nhàng Thư Giãn',
-    notes: [
-      { note: 'E4', duration: 0.5 },
-      { note: 'G4', duration: 0.5 },
-      { note: 'A4', duration: 0.5 },
-      { note: 'G4', duration: 0.5 },
-      { note: 'E4', duration: 0.5 },
-      { note: 'D4', duration: 0.5 },
-      { note: 'C4', duration: 1.0 },
-    ],
-    durationSec: 40,
-  },
-];
-
 export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, onAddTrack }) => {
-  const [sourceType, setSourceType] = useState<'upload' | 'url' | 'melody'>('upload');
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [category, setCategory] = useState<'vui_nhon' | 'ru_ngu' | 'tieng_anh' | 'dong_dao' | 'nhac_tre' | 'khong_loi'>('vui_nhon');
   const [selectedGradient, setSelectedGradient] = useState(GRADIENT_PRESETS[0]);
-  const [audioUrlInput, setAudioUrlInput] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [detectedDuration, setDetectedDuration] = useState<number>(60);
-  const [selectedMelodyTemplate, setSelectedMelodyTemplate] = useState(MELODY_TEMPLATES[0]);
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRecognizing, setIsRecognizing] = useState(false);
+  const [recognitionInfo, setRecognitionInfo] = useState<ParsedAudioMetadata | null>(null);
 
   // Audio Preview state
   const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
@@ -145,8 +93,8 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
     }
   };
 
-  // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection with Smart Song Title & Artist Recognition
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -158,14 +106,38 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
     setErrorMsg('');
     setUploadedFile(file);
     stopPreview();
+    setIsRecognizing(true);
 
-    // Auto extract title from filename
-    if (!title) {
-      const cleanName = file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
-      setTitle(cleanName);
+    try {
+      // 1. Smart Title, Artist & Lyrics recognition from ID3 tags & filename
+      const parsed = await recognizeAudioMetadata(file);
+      setRecognitionInfo(parsed);
+      setTitle(parsed.title);
+      setArtist(parsed.artist);
+      if (parsed.lyrics && !lyrics) {
+        setLyrics(parsed.lyrics);
+      }
+
+      // Auto-suggest category based on title/artist keywords
+      const lower = `${parsed.title} ${parsed.artist}`.toLowerCase();
+      if (lower.includes('ru') || lower.includes('ngủ') || lower.includes('lullaby') || lower.includes('sleep')) {
+        setCategory('ru_ngu');
+      } else if (lower.includes('english') || lower.includes('abc') || lower.includes('nursery') || /^[a-z0-9\s.,!?'"-]+$/i.test(parsed.title)) {
+        setCategory('tieng_anh');
+      } else if (lower.includes('đồng dao') || lower.includes('dân ca') || lower.includes('bà còng')) {
+        setCategory('dong_dao');
+      } else if (lower.includes('không lời') || lower.includes('piano') || lower.includes('instrumental') || lower.includes('acoustic')) {
+        setCategory('khong_loi');
+      } else {
+        setCategory('vui_nhon');
+      }
+    } catch (err) {
+      console.warn('Metadata recognition note:', err);
+    } finally {
+      setIsRecognizing(false);
     }
 
-    // Set up preview Audio
+    // 2. Set up audio element for preview & duration detection
     try {
       if (previewUrlRef.current) {
         URL.revokeObjectURL(previewUrlRef.current);
@@ -210,6 +182,11 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!uploadedFile) {
+      setErrorMsg('Vui lòng chọn tệp âm thanh tải lên!');
+      return;
+    }
+
     if (!title.trim()) {
       setErrorMsg('Vui lòng nhập tên bài hát!');
       return;
@@ -220,36 +197,12 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
 
     try {
       const trackId = `custom-track-${Date.now()}`;
-      let finalAudioUrl: string | undefined = undefined;
-      let hasBlobInVault = false;
-      let finalNotes: { note: string; duration: number }[] | undefined = selectedMelodyTemplate.notes;
-      let finalDuration = detectedDuration;
 
-      if (sourceType === 'upload') {
-        if (!uploadedFile) {
-          setErrorMsg('Vui lòng chọn tệp âm thanh tải lên!');
-          setIsSubmitting(false);
-          return;
-        }
+      // 1. Store persistent binary audio blob in IndexedDB vault
+      await storeAudioBlob(trackId, uploadedFile);
 
-        // 1. Store persistent binary audio blob in IndexedDB vault
-        await storeAudioBlob(trackId, uploadedFile);
-        hasBlobInVault = true;
-
-        // 2. Generate Object URL for immediate playback
-        finalAudioUrl = URL.createObjectURL(uploadedFile);
-      } else if (sourceType === 'url') {
-        if (!audioUrlInput.trim()) {
-          setErrorMsg('Vui lòng nhập đường dẫn liên kết tệp âm thanh!');
-          setIsSubmitting(false);
-          return;
-        }
-        finalAudioUrl = audioUrlInput.trim();
-      } else {
-        // Melody mode
-        finalNotes = selectedMelodyTemplate.notes;
-        finalDuration = selectedMelodyTemplate.durationSec;
-      }
+      // 2. Generate Object URL for immediate playback
+      const finalAudioUrl = URL.createObjectURL(uploadedFile);
 
       const newTrack: MusicTrack = {
         id: trackId,
@@ -259,12 +212,11 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
         coverGradient: selectedGradient.class,
         coverBgColor: selectedGradient.bg,
         audioUrl: finalAudioUrl,
-        notes: finalNotes,
-        durationSec: finalDuration,
+        durationSec: detectedDuration,
         lyrics: lyrics.trim() || undefined,
         isFavorite: false,
         isCustom: true,
-        hasBlobInVault,
+        hasBlobInVault: true,
         createdAt: Date.now(),
       };
 
@@ -292,7 +244,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
                 Thêm Bài Hát Vào Kho Nhạc
               </h3>
               <p className="text-xs text-neutral-400">
-                Tải tệp âm thanh (MP3, WAV, M4A, FLAC) hoặc dán link nhạc
+                Tải tệp âm thanh (MP3, WAV, M4A, FLAC) với tự động nhận diện tên bài hát
               </p>
             </div>
           </div>
@@ -317,199 +269,124 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
             </div>
           )}
 
-          {/* Source Type Selector */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold uppercase text-neutral-400 tracking-wider">
-              Nguồn Tệp Âm Thanh
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  stopPreview();
-                  setSourceType('upload');
-                }}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                  sourceType === 'upload'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
-                    : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
-                }`}
-              >
-                <Upload className="w-4 h-4 text-[#1ed760]" />
-                <span>Tải Tệp Lên</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  stopPreview();
-                  setSourceType('url');
-                }}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                  sourceType === 'url'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
-                    : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
-                }`}
-              >
-                <LinkIcon className="w-4 h-4 text-[#1ed760]" />
-                <span>Link Nhạc</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  stopPreview();
-                  setSourceType('melody');
-                }}
-                className={`py-2.5 px-2 rounded-xl border text-center font-bold text-xs transition-all flex flex-col items-center gap-1 cursor-pointer ${
-                  sourceType === 'melody'
-                    ? 'border-[#1ed760] bg-[#1ed760]/15 text-white shadow-sm'
-                    : 'border-[#333] bg-[#222] text-neutral-400 hover:text-white'
-                }`}
-              >
-                <Sparkles className="w-4 h-4 text-[#1ed760]" />
-                <span>Giai Điệu Ru</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Mode 1: Upload Audio File */}
-          {sourceType === 'upload' && (
-            <div className="space-y-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                className="p-5 rounded-xl border-2 border-dashed border-[#383838] hover:border-[#1ed760] bg-[#1f1f1f] hover:bg-[#252525] cursor-pointer transition-all flex flex-col items-center justify-center text-center gap-2 group"
-              >
-                <div className="w-12 h-12 rounded-full bg-[#1ed760]/10 group-hover:bg-[#1ed760]/20 text-[#1ed760] flex items-center justify-center transition-all">
+          {/* Upload Audio File Area (Bỏ thêm bằng link & giai điệu ru theo yêu cầu) */}
+          <div className="space-y-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className={`p-5 rounded-xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center gap-2 cursor-pointer group ${
+                uploadedFile
+                  ? 'border-[#1ed760]/70 bg-[#1ed760]/5'
+                  : 'border-[#383838] hover:border-[#1ed760] bg-[#1f1f1f] hover:bg-[#252525]'
+              }`}
+            >
+              <div className="w-12 h-12 rounded-full bg-[#1ed760]/10 group-hover:bg-[#1ed760]/20 text-[#1ed760] flex items-center justify-center transition-all">
+                {isRecognizing ? (
+                  <RefreshCw className="w-6 h-6 animate-spin text-[#1ed760]" />
+                ) : (
                   <FileAudio className="w-6 h-6" />
-                </div>
-                <div>
-                  <p className="font-bold text-sm text-white group-hover:text-[#1ed760] transition-colors">
-                    {uploadedFile ? uploadedFile.name : 'Bấm để chọn tệp âm thanh'}
+                )}
+              </div>
+              <div>
+                <p className="font-bold text-sm text-white group-hover:text-[#1ed760] transition-colors">
+                  {uploadedFile ? uploadedFile.name : 'Bấm để chọn tệp âm thanh tải lên'}
+                </p>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  Hỗ trợ MP3, WAV, M4A, OGG, FLAC • Tự động nhận diện tên bài hát & ca sĩ
+                </p>
+                {uploadedFile && (
+                  <p className="text-[10px] text-amber-400 font-bold mt-1">
+                    Kích thước: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB • Thời lượng: {formatSeconds(detectedDuration)}
                   </p>
-                  <p className="text-[11px] text-neutral-400 mt-0.5">
-                    Hỗ trợ MP3, WAV, M4A, OGG, FLAC (Lưu an toàn không giới hạn dung lượng)
-                  </p>
-                  {uploadedFile && (
-                    <p className="text-[10px] text-amber-400 font-bold mt-1">
-                      Kích thước: {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB • Thời lượng: {formatSeconds(detectedDuration)}
-                    </p>
+                )}
+              </div>
+            </div>
+
+            {/* Smart Recognition Status Badge */}
+            {recognitionInfo && (
+              <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-xl p-2.5 flex items-center gap-2.5 text-xs text-emerald-300 animate-in fade-in duration-200">
+                <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="font-bold text-white">Đã nhận diện:</span>{' '}
+                  <span className="text-emerald-200 font-semibold">{recognitionInfo.title}</span>
+                  {recognitionInfo.artist && (
+                    <span className="text-neutral-400"> — {recognitionInfo.artist}</span>
                   )}
+                  <span className="text-[10px] ml-1.5 px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-bold uppercase">
+                    {recognitionInfo.detectedFrom === 'id3' ? 'Thẻ ID3' : 'Tên tệp'}
+                  </span>
                 </div>
               </div>
+            )}
 
-              {/* In-Modal Audio Preview Bar */}
-              {uploadedFile && previewAudioRef.current && (
-                <div className="bg-[#222222] border border-[#333333] rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in duration-150">
-                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                    <button
-                      type="button"
-                      onClick={handleTogglePreview}
-                      className="w-9 h-9 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
-                      title={isPreviewPlaying ? 'Tạm dừng nghe thử' : 'Nghe thử âm thanh'}
-                    >
-                      {isPreviewPlaying ? (
-                        <Pause className="w-4 h-4 fill-black" />
-                      ) : (
-                        <Play className="w-4 h-4 fill-black translate-x-0.5" />
-                      )}
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between text-[11px] mb-1">
-                        <span className="font-bold text-neutral-300 truncate">
-                          {isPreviewPlaying ? 'Đang nghe thử...' : 'Nghe thử trước khi lưu'}
-                        </span>
-                        <span className="text-neutral-400 text-[10px] shrink-0 font-mono">
-                          {formatSeconds(previewCurrentTime)} / {formatSeconds(previewDuration || detectedDuration)}
-                        </span>
-                      </div>
-                      <div className="w-full bg-[#333333] h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className="bg-[#1ed760] h-full transition-all duration-200"
-                          style={{
-                            width: `${previewDuration > 0 ? (previewCurrentTime / previewDuration) * 100 : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="shrink-0 flex items-center text-neutral-400 text-xs">
-                    <Volume2 className="w-4 h-4 text-emerald-400" />
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Mode 2: Audio URL */}
-          {sourceType === 'url' && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-neutral-400 uppercase">
-                Đường Dẫn Âm Thanh (URL MP3/WAV)
-              </label>
-              <input
-                type="url"
-                value={audioUrlInput}
-                onChange={(e) => setAudioUrlInput(e.target.value)}
-                placeholder="https://example.com/audio/bai-hat-thieu-nhi.mp3"
-                className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg px-3 py-2 text-white outline-none text-xs"
-              />
-            </div>
-          )}
-
-          {/* Mode 3: Melody Synthesizer */}
-          {sourceType === 'melody' && (
-            <div className="space-y-2">
-              <label className="block text-xs font-bold text-neutral-400 uppercase">
-                Chọn Phong Cách Giai Điệu Hộp Nhạc:
-              </label>
-              <div className="space-y-1.5">
-                {MELODY_TEMPLATES.map((tmpl) => (
-                  <div
-                    key={tmpl.id}
-                    onClick={() => setSelectedMelodyTemplate(tmpl)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                      selectedMelodyTemplate.id === tmpl.id
-                        ? 'border-[#1ed760] bg-[#1ed760]/15 text-white'
-                        : 'border-[#333] bg-[#222] text-neutral-400 hover:border-neutral-500'
-                    }`}
+            {/* Live Audio Preview Bar */}
+            {uploadedFile && previewAudioRef.current && (
+              <div className="bg-[#222222] border border-[#333333] rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleTogglePreview}
+                    className="w-9 h-9 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] text-black flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer shrink-0"
+                    title={isPreviewPlaying ? 'Tạm dừng nghe thử' : 'Nghe thử âm thanh'}
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Disc className="w-4 h-4 text-[#1ed760]" />
-                      <div>
-                        <p className="font-bold text-xs text-white">{tmpl.name}</p>
-                        <p className="text-[10px] text-neutral-400">Thời lượng: ~{tmpl.durationSec} giây</p>
-                      </div>
-                    </div>
-                    {selectedMelodyTemplate.id === tmpl.id && (
-                      <Check className="w-4 h-4 text-[#1ed760]" />
+                    {isPreviewPlaying ? (
+                      <Pause className="w-4 h-4 fill-black" />
+                    ) : (
+                      <Play className="w-4 h-4 fill-black translate-x-0.5" />
                     )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between text-[11px] mb-1">
+                      <span className="font-bold text-neutral-300 truncate">
+                        {isPreviewPlaying ? 'Đang nghe thử...' : 'Nghe thử âm thanh'}
+                      </span>
+                      <span className="text-neutral-400 text-[10px] shrink-0 font-mono">
+                        {formatSeconds(previewCurrentTime)} / {formatSeconds(previewDuration || detectedDuration)}
+                      </span>
+                    </div>
+                    <div className="w-full bg-[#333333] h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-[#1ed760] h-full transition-all duration-200"
+                        style={{
+                          width: `${previewDuration > 0 ? (previewCurrentTime / previewDuration) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
                   </div>
-                ))}
+                </div>
+                <div className="shrink-0 flex items-center text-neutral-400 text-xs">
+                  <Volume2 className="w-4 h-4 text-emerald-400" />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Song Title & Artist */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
             <div>
-              <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">
-                Tên Bài Hát <span className="text-[#1ed760]">*</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-neutral-400 uppercase">
+                  Tên Bài Hát <span className="text-[#1ed760]">*</span>
+                </label>
+                {recognitionInfo && (
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-0.5">
+                    <Sparkles className="w-3 h-3" /> Tự nhận diện
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
                 required
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="VD: Cháu Lên Ba, Con Heo Đất..."
-                className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg px-3 py-2 text-white text-xs outline-none"
+                className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg px-3 py-2 text-white text-xs outline-none transition-colors"
               />
             </div>
 
@@ -522,7 +399,7 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
                 value={artist}
                 onChange={(e) => setArtist(e.target.value)}
                 placeholder="VD: Bé Bào Ngư, Mẹ Yêu Hát Tặng..."
-                className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg px-3 py-2 text-white text-xs outline-none"
+                className="w-full bg-[#242424] border border-[#383838] focus:border-[#1ed760] rounded-lg px-3 py-2 text-white text-xs outline-none transition-colors"
               />
             </div>
           </div>
@@ -604,8 +481,8 @@ export const AddMusicModal: React.FC<AddMusicModalProps> = ({ isOpen, onClose, o
           <div className="pt-2">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full py-3 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] disabled:opacity-50 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-102 active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+              disabled={isSubmitting || !uploadedFile}
+              className="w-full py-3 rounded-full bg-[#1ed760] hover:bg-[#1fdf64] disabled:opacity-40 text-black font-extrabold text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-102 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:cursor-not-allowed"
             >
               {isSubmitting ? (
                 <span>Đang xử lý & lưu âm thanh...</span>
